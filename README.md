@@ -2,36 +2,35 @@
 
 ## Overview
 
-This project is a high-performance, modular CDN and HTTP cache solution based on **NGINX**.  
-It uses Lua scripting for advanced cache logic, logging, metrics collection, and header manipulation.  
-**Redis** is used as the cache backend, and **Prometheus** is used for rich traffic and cache metrics—making it perfect for Kubernetes or any environment where control, performance, and observability matter.
+This project is a high-performance, modular CDN and HTTP cache solution based on **NGINX**. It uses Lua scripting for advanced cache logic, logging, metrics collection, and header manipulation. **Redis** is the cache backend, and **Prometheus** provides comprehensive traffic and cache metrics, ideal for Kubernetes or any environment prioritizing control, performance, and observability.
 
 ---
 
 ## Architecture
 
-- **NGINX** acts as a reverse proxy and main HTTP router.
-- **Lua** (via [OpenResty](https://openresty.org/)) is used for all advanced logic: cache, metrics, logging, and custom header handling.
-- **Redis** stores cached HTTP responses.
-- **Prometheus** collects and exposes real-time metrics.
-- **Full modularization**: All business logic, logs, headers, and cache behavior live in external Lua modules and config files.
+* **NGINX**: Acts as reverse proxy and main HTTP router.
+* **Lua** (via [OpenResty](https://openresty.org/)): Advanced logic for caching, metrics, logging, and headers.
+* **Redis**: Stores cached HTTP responses.
+* **Prometheus**: Real-time metrics collection and exposure.
+* **Full Modularization**: Logic, logging, headers, and caching behavior are maintained in external Lua modules and configuration files.
 
 ---
 
 ## Project Structure
 
-- `nginx.conf`: Main NGINX configuration.
-- `log_format.conf`: Custom JSON log format for integrations (e.g., Elasticsearch).
-- `http_globals.conf`: Global HTTP performance, security, and gzip settings.
-- `maps.conf`: Route normalization and mapping rules.
-- `http_settings_module_vhost_traffic_status.conf`: vhost traffic status module settings.
-- **Lua scripts**:
-  - `cache_handler.lua`: Main Redis-based cache logic.
-  - `prometheus_metrics.lua`: Prometheus metrics exporter.
-  - `body_logger.lua` & `headers_logger.lua`: Capture response body and request headers for logging.
-  - `add_header.lua`: Adds security/debug headers to all responses.
-  - `redis_key_invalidation.lua`: Manual Redis cache key invalidation endpoint.
-- Easily add new Lua scripts for more logic (auth, rate limiting, etc).
+* `nginx.conf`: Primary NGINX configuration.
+* `log_format.conf`: JSON log format suitable for Elasticsearch integration.
+* `http_globals.conf`: Global HTTP settings (performance, security, gzip).
+* `maps.conf`: URI normalization and mapping.
+* `http_settings_module_vhost_traffic_status.conf`: vhost traffic status settings.
+
+### Lua Scripts
+
+* `cache_handler.lua`: Redis cache logic.
+* `prometheus_metrics.lua`: Prometheus metrics exporter.
+* `body_logger.lua`, `headers_logger.lua`: Capture response/request logs.
+* `add_header.lua`: Adds custom security/debug headers.
+* `redis_key_invalidation.lua`: Cache key invalidation endpoint.
 
 ---
 
@@ -39,49 +38,45 @@ It uses Lua scripting for advanced cache logic, logging, metrics collection, and
 
 ### 1. **Redis-Powered HTTP Caching**
 
-- Cache key is generated using method, URI, selected headers, and (optionally) the request body (for POST/PUT).
-- Cache TTL, relevant headers, cacheable HTTP methods, and status codes are all set via NGINX variables.
-- Distributed locking avoids cache stampedes under load.
-- **Stale cache** support: If backend is down, still serve old cache if available.
-- Manual cache invalidation via `/cache_invalidate`.
+* Cache keys based on request attributes (method, URI, headers, body).
+* Distributed locking prevents cache stampedes.
+* Supports serving stale cache when backend services fail.
+* Manual cache invalidation via `/cache_invalidate` endpoint.
 
 ### 2. **Structured Logging**
 
-- JSON log output as defined in `log_format.conf`, suitable for Elasticsearch and other log analytics platforms:
-    ```json
-    {
-      "http_user_agent": "...",
-      "request_uri": "/api/...",
-      "status": "200",
-      "cache_status": "HIT",
-      "request_body": "...",
-      "response_body": "...",
-      ...
-    }
-    ```
+JSON logging suitable for Elasticsearch:
+
+```json
+{
+  "http_user_agent": "...",
+  "request_uri": "/api/...",
+  "status": "200",
+  "cache_status": "HIT",
+  "request_body": "...",
+  "response_body": "..."
+}
+```
 
 ### 3. **Advanced Metrics (Prometheus)**
 
-- Exposed on `/monitoring/metrics`
-- Per-route, method, status, pod, namespace, and deployment metrics.
-- Cache events (hit, miss, stale, bypass), errors, request size/timing, connections, TLS info, upstream timings, etc.
-- **Ready for Grafana dashboards!**
+* Metrics exposed at `/monitoring/metrics`.
+* Detailed metrics per route, method, status, namespace, pod, and deployment.
+* Easily integrated into Grafana dashboards.
 
 ### 4. **Security and Header Control**
 
-- Security headers (CSP, X-Frame-Options, etc.) out-of-the-box.
-- Debug headers (pod hostname, cache status).
-- All logic managed through `add_header.lua`.
+* Preconfigured security headers.
+* Debugging headers for monitoring.
 
 ### 5. **Observability & Debugging**
 
-- `/monitoring/_nginx_status`: HTML dashboard for traffic status per vhost/route.
-- `/nginx_healthcheck`: Simple healthcheck endpoint for probes.
-- Logs and metrics are easy to consume for production monitoring.
+* Traffic status dashboard (`/monitoring/_nginx_status`).
+* Health check endpoint (`/_nginx_healthcheck`).
 
 ### 6. **Route Normalization**
 
-- Use `maps.conf` to normalize and map URIs for metric aggregation and cleaner dashboards.
+* `maps.conf` to normalize URIs for simplified monitoring.
 
 ---
 
@@ -89,34 +84,100 @@ It uses Lua scripting for advanced cache logic, logging, metrics collection, and
 
 ### Prerequisites
 
-- NGINX with [lua-nginx-module](https://github.com/openresty/lua-nginx-module) support (e.g., OpenResty).
-- Redis instance accessible (local or remote).
-- Prometheus configured to scrape `/monitoring/metrics`.
+* NGINX with [lua-nginx-module](https://github.com/openresty/lua-nginx-module) (e.g., OpenResty).
+* Accessible Redis instance.
+* Prometheus scraping from `/monitoring/metrics`.
 
-### Quick Deploy
+### Quick Deployment
 
-1. **Clone the repo and adjust config files for your environment.**
-2. Set your Redis endpoints, cache/TTL variables, and any custom headers in `vars.conf`.
-3. Start NGINX (Docker/K8s/VM).
-4. Expose the ports as set in `nginx.conf` (`8889` for API, `8890` for metrics).
-5. [Optional] Forward logs to Elasticsearch or any SIEM tool.
+1. Clone repository and configure environment-specific settings.
+2. Set Redis endpoints and cache variables in `vars.conf`.
+3. Start NGINX (Docker, Kubernetes, VM).
+4. Expose API (`8889`) and metrics (`8890`) ports.
+5. \[Optional] Configure log forwarding (Elasticsearch, SIEM).
 
 ---
 
-## Key Variables (`vars.conf` example)
+## Configuration (`vars.conf` Example)
 
 ```nginx
-# Redis
-set $redis_host            "localhost";
-set $redis_read_host       "localhost";
-set $redis_write_host      "localhost";
-set $redis_timeout         "1000";
-set $redis_pool_size       "100";
-set $redis_ttl             "3600";
-# Cache
-set $cache_methods         "GET,HEAD";
-set $cache_statuses        "200,203,204,206,301,404";
-set $cache_headers         "Authorization";
-set $cache_use_body_in_key "false";
-set $treat_head_as_get     "true";
-# Add more variables as needed
+# Redis configuration
+set $redis_host              "localhost";
+set $redis_read_host         "localhost";
+set $redis_write_host        "localhost";
+set $redis_timeout           "1000";
+set $redis_pool_size         "100";
+set $redis_ttl               "3600";
+
+# Cache configuration
+set $cache_methods           "GET,HEAD";
+set $cache_statuses          "200,203,204,206,301,404";
+set $cache_headers           "Authorization";
+set $cache_use_body_in_key   "false";
+set $treat_head_as_get       "true";
+```
+
+---
+
+## Creating a Cached Location
+
+Define cached routes individually in `nginx.conf`, overriding global variables as needed:
+
+```nginx
+location /api/v1/colors {
+    set $redis_ttl 1800;
+
+    add_header Cache-Control public;
+    add_header Pragma public;
+    add_header Vary Accept-Encoding;
+    expires 30m;
+
+    content_by_lua_block {
+        require("cache_handler").handle()
+    }
+}
+```
+
+### Variable Override Logic
+
+* **Global Variables**: Default for all locations.
+* **Local Overrides**: Specific route overrides take precedence.
+* All variables in `vars.conf` can be overridden per route.
+
+#### Example
+
+Global `$redis_ttl` is `3600`:
+
+* Without local overrides: uses global (`3600`).
+* Local override (`set $redis_ttl 1800;`): route uses `1800`.
+
+---
+
+## Cache Invalidation
+
+Manual cache invalidation can be performed by calling the dedicated invalidation endpoint:
+
+```
+GET /cache_invalidate?key=<cache_key>
+```
+
+Replace `<cache_key>` with the actual cache key you wish to invalidate. Multiple keys can be invalidated simultaneously by providing multiple `key` parameters.
+
+---
+
+## Best Practices for Cached Routes
+
+### Step 1: Define Cached Routes First
+
+* Clearly list cached routes **before** the default (`location /`).
+
+### Step 2: Default Route at End
+
+* Always place `location /` at the end for fallback purposes.
+
+### Benefits
+
+* Optimized route matching performance.
+* Enhanced readability and maintainability.
+
+Following these recommendations ensures efficient, maintainable NGINX configurations.
