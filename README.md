@@ -306,8 +306,18 @@ vary: Accept-Encoding
 
 ---
 
+Claro, aqui está o trecho final revisado, pronto para colar no seu README.md:
+
+---
+
 > **Tip:**
 > `tail -f /var/log/nginx/error.log` is essential for debugging.
 > It lets you see the flow of each request, cache key computation, lock handling, backend access, and cache result (MISS or HIT) in real time.
+> **Note:**
+> By default, detailed log statements (`log_warn`) in the Lua scripts are usually commented out to reduce log noise.
+> **To enable detailed debugging, uncomment the lines containing `log_warn` in your Lua modules (`cache_handler.lua` etc.) before using this feature.**
+
+---
+
 
 ---
