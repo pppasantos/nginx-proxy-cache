@@ -32,7 +32,7 @@ local function get_redis_client(read_only)
                  or (ngx.var.redis_write_host or ngx.var.redis_host)
     local ok, err = red:connect(host, 6379)
     if not ok then
-        log_err("Falha ao conectar Redis ("..(read_only and "READ" or "WRITE").."): ", err)
+        log_err("Failed to connect to Redis ("..(read_only and "READ" or "WRITE").."): ", err)
         return nil
     end
     return red
@@ -42,9 +42,9 @@ local function acquire_lock(red, key)
     local lock_ttl = math.ceil((tonumber(ngx.var.lua_backend_timeout) or 3000) / 1000) + 1
     local ok, err = red:set(key, "locked", "EX", lock_ttl, "NX")
     if ok ~= "OK" then
-        --log_warn("Lock não adquirido: ", key)
+        --log_warn("Lock not acquired: ", key)
     else
-        --log_warn("Lock adquirido com sucesso: ", key)
+        --log_warn("Lock successfully acquired: ", key)
     end
     return ok == "OK"
 end
@@ -54,9 +54,9 @@ local function fetch_cache(red, key)
     if val and val ~= ngx.null then
         local data = cjson.decode(val)
         if data then return data end
-        --log_warn("Falha ao decodificar cache: ", key)
+        --log_warn("Failed to decode cache: ", key)
     else
-        --log_warn("Cache ausente para chave: ", key)
+        --log_warn("Cache missing for key: ", key)
     end
 end
 
@@ -85,10 +85,10 @@ function _M.handle()
     local use_body_in_key = ngx.var.cache_use_body_in_key == "true"
     local ttl = tonumber(ngx.var.redis_ttl) or 3600
 
-    --log_warn("Método da requisição: ", method)
+    --log_warn("Request method: ", method)
     --log_warn("Cacheable methods: ", ngx.var.cache_methods)
     --log_warn("Cacheable statuses: ", ngx.var.cache_statuses)
-    --log_warn("TTL configurado: ", ttl)
+    --log_warn("Configured TTL: ", ttl)
 
     ngx.req.read_body()
     local body_data = ngx.req.get_body_data() or ""
@@ -107,25 +107,25 @@ function _M.handle()
     ngx.var.cache_key = key_hash
     local lock_key = "lock:" .. key_hash
 
-    --log_warn("Cache Key gerado: ", key_hash)
+    --log_warn("Generated Cache Key: ", key_hash)
 
     local red_read = get_redis_client(true)
     local red_write = get_redis_client(false)
     if not red_read or not red_write then
-        log_err("Erro ao inicializar Redis")
+        log_err("Error initializing Redis")
         return ngx.exit(500)
     end
 
-    -- Verificar se o método não está na lista de métodos cacheáveis
+    -- Check if the method is not in the cacheable methods list
     if not cache_methods[method] then
-        --log_warn("Método não cacheado: ", method)
+        --log_warn("Non-cached method: ", method)
 
-        -- Envia diretamente ao backend sem passar pelo cache
+        -- Send directly to backend without passing through cache
         local httpc = http.new()
         httpc:set_timeout(tonumber(ngx.var.lua_backend_timeout) or 3000)
 
         local backend_method = (method == "HEAD" and ngx.var.treat_head_as_get == "true") and "GET" or method
-        --log_warn("Requisição ao backend: método = ", backend_method, " URI = ", raw_uri)
+        --log_warn("Backend request: method = ", backend_method, " URI = ", raw_uri)
 
         local res, err = httpc:request_uri("http://127.0.0.1:8888" .. raw_uri, {
             method = backend_method,
@@ -134,17 +134,17 @@ function _M.handle()
         })
 
         if not res then
-            log_err("Erro backend: ", err)
+            log_err("Backend error: ", err)
             ngx.status = 502
             if not ngx.headers_sent then
-                ngx.say("Erro ao consultar backend")
+                ngx.say("Error consulting backend")
             end
             return ngx.exit(502)
         end
 
-        --log_warn("Resposta recebida do backend com status: ", res.status)
+        --log_warn("Backend response received with status: ", res.status)
 
-        -- Envia a resposta do backend
+        -- Send the backend response
         for k, v in pairs(res.headers) do
             if k:lower() ~= "transfer-encoding" and k:lower() ~= "connection" then
                 ngx.header[k] = v
@@ -156,28 +156,28 @@ function _M.handle()
         return ngx.exit(res.status)
     end
 
-    -- Se o método está em cache_methods, continuamos com o processo de cache
+    -- If the method is in cache_methods, continue with the cache process
     if not acquire_lock(red_write, lock_key) then
         local cached = fetch_cache(red_read, key_hash)
         if cached then
-            --log_warn("Servindo cache durante lock: ", key_hash)
+            --log_warn("Serving cache during lock: ", key_hash)
             red_read:close(); red_write:close()
             return respond_from_cache(cached, "HIT")
         end
-        --log_warn("Nenhum cache e lock ativo: ", key_hash)
+        --log_warn("No cache and lock active: ", key_hash)
         red_read:close(); red_write:close()
         return respond_locked()
     end
 
     local cached = fetch_cache(red_read, key_hash)
     if cached then
-        --log_warn("Cache populado entre lock e fetch: ", key_hash)
+        --log_warn("Cache populated between lock and fetch: ", key_hash)
         red_write:del(lock_key)
         red_read:close(); red_write:close()
         return respond_from_cache(cached, "HIT")
     end
 
-    --log_warn("Cache MISS confirmado, seguindo para backend: ", raw_uri)
+    --log_warn("Confirmed cache MISS, proceeding to backend: ", raw_uri)
     ngx.header["X-Cache"] = "MISS"
     ngx.var.cache_status = "MISS"
 
@@ -185,7 +185,7 @@ function _M.handle()
     httpc:set_timeout(tonumber(ngx.var.lua_backend_timeout) or 3000)
 
     local backend_method = (method == "HEAD" and treat_head_as_get) and "GET" or method
-    --log_warn("Requisição ao backend: método = ", backend_method, " URI = ", raw_uri)
+    --log_warn("Backend request: method = ", backend_method, " URI = ", raw_uri)
 
     local res, err = httpc:request_uri("http://127.0.0.1:8888" .. raw_uri, {
         method = backend_method,
@@ -194,24 +194,24 @@ function _M.handle()
     })
 
     if not res then
-        log_err("Erro backend: ", err)
+        log_err("Backend error: ", err)
         local stale = fetch_cache(red_read, key_hash)
         if stale then
-            --log_warn("Servindo cache stale por erro: ", key_hash)
+            --log_warn("Serving stale cache due to error: ", key_hash)
             red_write:del(lock_key)
             red_read:close(); red_write:close()
             return respond_from_cache(stale, "STALE-IF-ERROR")
         end
         ngx.status = 502
         if not ngx.headers_sent then
-            ngx.say("Erro ao consultar backend")
+            ngx.say("Error consulting backend")
         end
         red_write:del(lock_key)
         red_read:close(); red_write:close()
         return ngx.exit(502)
     end
 
-    --log_warn("Resposta recebida do backend com status: ", res.status)
+    --log_warn("Backend response received with status: ", res.status)
 
     if cache_methods[method] and cache_statuses[tostring(res.status)] then
         local filtered = {}
@@ -229,21 +229,21 @@ function _M.handle()
                 if check_val and check_val ~= ngx.null then
                     local ttl_set, ttl_err = red_write:expire(key_hash, ttl)
                     if ttl_set then
-                        --log_warn("Resposta salva no cache: ", key_hash)
+                        --log_warn("Response saved to cache: ", key_hash)
                     else
-                        log_err("Erro ao configurar TTL: ", ttl_err)
+                        log_err("Error setting TTL: ", ttl_err)
                     end
                 else
-                    log_err("Falha ao verificar chave no Redis: ", check_err)
+                    log_err("Failed to verify key in Redis: ", check_err)
                 end
             else
-                log_err("Erro ao salvar no Redis: ", err)
+                log_err("Error saving to Redis: ", err)
             end
         else
-            log_err("Erro ao serializar resposta para cache")
+            log_err("Error serializing response for cache")
         end
     else
-        --log_warn("Método ou status não permitidos para cache. Não armazenando.")
+        --log_warn("Method or status not allowed for cache. Not storing.")
     end
 
     for k, v in pairs(res.headers) do
@@ -254,7 +254,7 @@ function _M.handle()
     ngx.status = res.status
     if method ~= "HEAD" then ngx.print(res.body) end
 
-    --log_warn("✅ Finalizando requisição, limpando lock")
+    --log_warn("✅ Finishing request, cleaning lock")
     red_write:del(lock_key)
     red_read:close(); red_write:close()
 end
