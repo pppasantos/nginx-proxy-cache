@@ -180,4 +180,131 @@ Replace `<cache_key>` with the actual cache key you wish to invalidate. Multiple
 * Optimized route matching performance.
 * Enhanced readability and maintainability.
 
-Following these recommendations ensures efficient, maintainable NGINX configurations.
+Aqui está seu trecho pronto para documentação, em **Markdown**, incluindo o request real (`curl`) e as duas respostas completas (MISS e HIT), seguidos dos logs do `tail -f`, com explicação clara:
+
+---
+
+## Example: Cache MISS and HIT in Practice
+
+When a client requests a resource for the first time, the cache is empty, resulting in a **MISS**. The response is fetched from the backend and stored. On subsequent identical requests, the cache is **HIT** and the content is served directly from Redis.
+
+### 1️⃣ First Request (MISS)
+
+**Request:**
+
+```bash
+curl -i http://localhost:8889/api/character/1 \
+  -H "Host: rickandmortyapi.com" \
+  -H "Accept: application/json"
+```
+
+**Response:**
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Connection: keep-alive
+Vary: Accept-Encoding
+X-Cache: MISS
+Strict-Transport-Security: max-age=31536000
+Etag: W/"a9f-I68Cx5oSPFclkl+Wy2Fr9jNsFS8"
+Cache-Control: max-age=3600
+X-Nf-Request-Id: 01JYMJ9RJYH7DK50E7XMTYM7WA
+Expires: Wed, 25 Jun 2025 23:10:56 GMT
+Cache-Status: "Netlify Edge"; hit
+Content-Length: 2719
+X-Powered-By: Express
+Netlify-Vary: query
+Access-Control-Allow-Origin: *
+Age: 568
+Date: Wed, 25 Jun 2025 22:10:56 GMT
+X-Pod-Hostname: 2a4ce87f6375
+Cache-Control: public
+Pragma: public
+vary: Accept-Encoding
+
+{"id":1,"name":"Rick Sanchez","status":"Alive","species":"Human","type":"","gender":"Male","origin":{"name":"Earth (C-137)","url":"https://rickandmortyapi.com/api/location/1"},"location":{"name":"Citadel of Ricks","url":"https://rickandmortyapi.com/api/location/3"},"image":"https://rickandmortyapi.com/api/character/avatar/1.jpeg","episode":["https://rickandmortyapi.com/api/episode/1",...],"url":"https://rickandmortyapi.com/api/character/1","created":"2017-11-04T18:48:46.250Z"}
+```
+
+**Logs (`tail -f /var/log/nginx/error.log`):**
+
+```text
+⚠️ Request method: GET, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Cacheable methods: GET,POST, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Cacheable statuses: 200,201,204,400,401,403,404,422, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Configured TTL: 3600, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Generated Cache Key: cd4e850d2ce866f930c8c7eb3d000411, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Lock successfully acquired: lock:cd4e850d2ce866f930c8c7eb3d000411, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Cache missing for key: cd4e850d2ce866f930c8c7eb3d000411, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Confirmed cache MISS, proceeding to backend: /api/character/1, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Backend request: method = GET URI = /api/character/1, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Backend response received with status: 200, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Response saved to cache: cd4e850d2ce866f930c8c7eb3d000411, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ ✅ Finishing request, cleaning lock, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+```
+
+**Explanation:**
+
+* First request results in a cache `MISS`.
+* Full response is fetched from backend, stored in Redis, and returned to client with `X-Cache: MISS`.
+* All processing steps are visible in the NGINX error log (using `tail -f`), which is essential for debugging and tracing cache behavior.
+
+---
+
+### 2️⃣ Second Request (HIT)
+
+**Request:**
+
+```bash
+curl -i http://localhost:8889/api/character/1 \
+  -H "Host: rickandmortyapi.com" \
+  -H "Accept: application/json"
+```
+
+**Response:**
+
+```http
+HTTP/1.1 200 OK
+Date: Wed, 25 Jun 2025 22:11:52 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Vary: Accept-Encoding
+Etag: W/"a9f-I68Cx5oSPFclkl+Wy2Fr9jNsFS8"
+Cache-Control: max-age=3600
+X-Cache: HIT
+Expires: Wed, 25 Jun 2025 23:11:52 GMT
+X-Pod-Hostname: 2a4ce87f6375
+Cache-Control: public
+Pragma: public
+vary: Accept-Encoding
+
+{"id":1,"name":"Rick Sanchez","status":"Alive","species":"Human","type":"","gender":"Male","origin":{"name":"Earth (C-137)","url":"https://rickandmortyapi.com/api/location/1"},"location":{"name":"Citadel of Ricks","url":"https://rickandmortyapi.com/api/location/3"},"image":"https://rickandmortyapi.com/api/character/avatar/1.jpeg","episode":["https://rickandmortyapi.com/api/episode/1",...],"url":"https://rickandmortyapi.com/api/character/1","created":"2017-11-04T18:48:46.250Z"}
+```
+
+**Logs (`tail -f /var/log/nginx/error.log`):**
+
+```text
+⚠️ Request method: GET, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Cacheable methods: GET,POST, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Cacheable statuses: 200,201,204,400,401,403,404,422, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Configured TTL: 3600, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Generated Cache Key: cd4e850d2ce866f930c8c7eb3d000411, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Lock successfully acquired: lock:cd4e850d2ce866f930c8c7eb3d000411, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+⚠️ Cache populated between lock and fetch: cd4e850d2ce866f930c8c7eb3d000411, client: 172.24.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
+```
+
+**Explanation:**
+
+* Now the cache returns a `HIT`, serving the response directly from Redis with `X-Cache: HIT`.
+* Backend is not called again for the same content.
+* The logs confirm that the value was found in Redis and used for the reply.
+* Use `tail -f /var/log/nginx/error.log` to monitor every cache access and debug real-time behavior.
+
+---
+
+> **Tip:**
+> `tail -f /var/log/nginx/error.log` is essential for debugging.
+> It lets you see the flow of each request, cache key computation, lock handling, backend access, and cache result (MISS or HIT) in real time.
+
+---

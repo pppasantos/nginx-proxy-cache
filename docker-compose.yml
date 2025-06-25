@@ -1,0 +1,17 @@
+services:
+  redis:
+    image: redis:7
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+
+  nginx-proxy-cache:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proxy
+    depends_on:
+      - redis
+    ports:
+      - "8889:8889"
+      - "8890:8890"

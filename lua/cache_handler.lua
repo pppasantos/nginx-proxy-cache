@@ -127,11 +127,17 @@ function _M.handle()
         local backend_method = (method == "HEAD" and ngx.var.treat_head_as_get == "true") and "GET" or method
         --log_warn("Backend request: method = ", backend_method, " URI = ", raw_uri)
 
-        local res, err = httpc:request_uri("http://127.0.0.1:8888" .. raw_uri, {
+        local url = ngx.var.backend_url_scheme .. "://" ..
+            ngx.var.backend_url_host .. ":" ..
+            ngx.var.backend_host_port .. raw_uri
+
+        local res, err = httpc:request_uri(url, {
             method = backend_method,
             body = body_data,
-            headers = headers
+            headers = headers,
+            ssl_verify = ngx.var.lua_ssl_verify == "true"
         })
+
 
         if not res then
             log_err("Backend error: ", err)
@@ -187,11 +193,16 @@ function _M.handle()
     local backend_method = (method == "HEAD" and treat_head_as_get) and "GET" or method
     --log_warn("Backend request: method = ", backend_method, " URI = ", raw_uri)
 
-    local res, err = httpc:request_uri("http://127.0.0.1:8888" .. raw_uri, {
+    local url = ngx.var.backend_url_scheme .. "://" ..
+        ngx.var.backend_url_host .. ":" ..
+        ngx.var.backend_host_port .. raw_uri
+
+    local res, err = httpc:request_uri(url, {
         method = backend_method,
         body = body_data,
-        headers = headers
-    })
+        headers = headers,
+        ssl_verify = ngx.var.lua_ssl_verify == "true"
+        })
 
     if not res then
         log_err("Backend error: ", err)
