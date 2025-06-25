@@ -64,6 +64,9 @@ JSON logging suitable for Elasticsearch:
 * Detailed metrics per route, method, status, namespace, pod, and deployment.
 * Easily integrated into Grafana dashboards.
 
+![image](https://github.com/user-attachments/assets/75e399ab-f29f-4f4a-8ea7-5adf86adad1f)
+
+
 ### 4. **Security and Header Control**
 
 * Preconfigured security headers.
