@@ -26,8 +26,8 @@ WORKDIR /tmp
 RUN echo "http://nginx.org/packages/alpine/v3.12/main" >> /etc/apk/repositories && \
     wget https://nginx.org/keys/nginx_signing.rsa.pub && \
     mv nginx_signing.rsa.pub /etc/apk/keys/
-RUN wget http://nginx.org/download/nginx-1.24.0.tar.gz && \
-    tar -zxvf nginx-1.24.0.tar.gz
+RUN wget http://nginx.org/download/nginx-1.26.0.tar.gz && \
+    tar -zxvf nginx-1.26.0.tar.gz
 RUN git clone https://github.com/openresty/headers-more-nginx-module.git && \
     git clone https://github.com/simpl/ngx_devel_kit.git && \
     git clone https://github.com/openresty/set-misc-nginx-module.git && \
@@ -39,7 +39,7 @@ RUN git clone https://github.com/openresty/headers-more-nginx-module.git && \
 RUN mkdir -p /usr/local/lib/lua /usr/local/share/lua/5.1 && \
     cp -r lua-resty-core/lib/resty /usr/local/share/lua/5.1/ && \
     cp -r lua-resty-lrucache/lib/resty /usr/local/share/lua/5.1/
-WORKDIR /tmp/nginx-1.24.0
+WORKDIR /tmp/nginx-1.26.0
 RUN ./configure \
     --add-module=/tmp/headers-more-nginx-module \
     --add-module=/tmp/ngx_devel_kit \
