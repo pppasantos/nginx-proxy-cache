@@ -76,6 +76,7 @@ JSON logging suitable for Elasticsearch:
   "connections_waiting":"${connections_waiting}",
   "connections_writing":"${connections_writing}"
 }
+
 ```
 
 ### 3. **Advanced Metrics (Prometheus)**
