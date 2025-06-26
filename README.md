@@ -49,12 +49,32 @@ JSON logging suitable for Elasticsearch:
 
 ```json
 {
-  "http_user_agent": "...",
-  "request_uri": "/api/...",
-  "status": "200",
-  "cache_status": "HIT",
-  "request_body": "...",
-  "response_body": "..."
+  "http_user_agent":"${http_user_agent}",
+  "http_x_forwarded_for":"${http_x_forwarded_for}",
+  "server_addr":"${server_addr}",
+  "vhost":"${host}",
+  "request_method":"${request_method}",
+  "request_uri":"${request_uri}",
+  "request_headers":"${req_headers}",
+  "http_referer":"${http_referer}",
+  "server_protocol":"${server_protocol}",
+  "request_time":"${request_time}",
+  "upstream_response_time":"${upstream_response_time}",
+  "upstream_connect_time":"${upstream_connect_time}",
+  "upstream_header_time":"${upstream_header_time}",
+  "status":"${status}",
+  "request_body":"${request_body}",
+  "response_body":"${resp_body}",
+  "args":"${args}",
+  "cache_key":"${cache_key}",
+  "cache_status":"${cache_status}",
+  "connection":"${connection}",
+  "connection_requests":"${connection_requests}",
+  "connection_time":"${connection_time}",
+  "connections_active":"${connections_active}",
+  "connections_reading":"${connections_reading}",
+  "connections_waiting":"${connections_waiting}",
+  "connections_writing":"${connections_writing}"
 }
 ```
 
