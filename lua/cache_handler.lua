@@ -61,7 +61,13 @@ local function fetch_cache(red, key)
 end
 
 local function respond_from_cache(data, src)
-    for k, v in pairs(data.headers or {}) do ngx.header[k] = v end
+    local skip_headers = to_set(split(ngx.var.cache_exclude_response_headers or "", ","))
+
+    for k, v in pairs(data.headers or {}) do
+        if not skip_headers[k:lower()] then
+            ngx.header[k] = v
+        end
+    end
     ngx.header["X-Cache"] = src
     ngx.var.cache_status = src
     ngx.status = data.status
