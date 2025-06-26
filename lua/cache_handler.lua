@@ -68,7 +68,7 @@ local function respond_from_cache(data, src)
             ngx.header[k] = v
         end
     end
-
+    ngx.header["X-Cache"] = src
     ngx.var.cache_status = src
     ngx.status = data.status
     if ngx.req.get_method() ~= "HEAD" then ngx.print(data.body) end
