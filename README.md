@@ -183,8 +183,6 @@ Replace `<cache_key>` with the actual cache key you wish to invalidate. Multiple
 * Optimized route matching performance.
 * Enhanced readability and maintainability.
 
-Aqui está seu trecho pronto para documentação, em **Markdown**, incluindo o request real (`curl`) e as duas respostas completas (MISS e HIT), seguidos dos logs do `tail -f`, com explicação clara:
-
 ---
 
 ## Example: Cache MISS and HIT in Practice
