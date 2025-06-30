@@ -67,7 +67,8 @@ local function respond_from_cache(data, src)
     ngx.header["X-Cache"] = src
     ngx.var.cache_status = src
     ngx.status = data.status
-    if ngx.req.get_method() ~= "HEAD" then ngx.print(data.body) end
+    local body = ngx.decode_base64(data.body)
+    if ngx.req.get_method() ~= "HEAD" then ngx.print(body) end
     log_warn("Responding from cache [", src, "]")
 end
 
@@ -185,12 +186,14 @@ function _M.handle()
         local filtered = {}
         for k, v in pairs(res.headers) do
             local kl = k:lower()
-            if kl == "content-type" or kl == "etag" or kl == "cache-control" then
+            if kl == "content-type" or kl == "etag" or kl == "cache-control"
+               or kl == "expires" or kl == "content-length" then
                 filtered[k] = v
             end
         end
 
-        local payload = cjson.encode({ status = res.status, headers = filtered, body = res.body })
+        local body_encoded = ngx.encode_base64(res.body)
+        local payload = cjson.encode({ status = res.status, headers = filtered, body = body_encoded })
         if payload then
             local ok = red_write:set(key_hash, payload, "EX", ttl)
             if ok then
