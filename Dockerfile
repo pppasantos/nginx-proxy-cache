@@ -16,7 +16,8 @@ RUN apk add --no-cache \
     lua-resty-http \
     luarocks \
     tzdata \
-    wget
+    wget \
+    openssl-dev
 RUN cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime && \
     echo "America/Sao_Paulo" > /etc/timezone && \
     apk del tzdata
@@ -72,7 +73,8 @@ RUN ./configure \
     && make && make install
 RUN luarocks-5.1 install lua-resty-redis && \
     luarocks-5.1 install lua-resty-prometheus && \
-    luarocks-5.1 install lua-resty-lock
+    luarocks-5.1 install lua-resty-lock && \
+    luarocks-5.1 install luaossl
 FROM alpine:3.19.1
 RUN apk add --no-cache \
     bash \
@@ -92,7 +94,9 @@ RUN apk add --no-cache \
     lua-resty-http \
     luarocks \
     tzdata \
-    wget
+    wget \
+    openssl \
+    openssl-dev
 COPY --from=builder /usr/local/nginx /usr/local/nginx
 COPY --from=builder /usr/local/share/lua /usr/local/share/lua
 COPY --from=builder /usr/local/lib/lua /usr/local/lib/lua
