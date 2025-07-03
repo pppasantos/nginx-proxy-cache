@@ -1,20 +1,30 @@
 local redis = require "resty.redis"
+local http = require "resty.http"
 local cjson = require "cjson.safe"
-local lock = require "resty.lock"
-local utils = require("utils")
-
-local split = utils.split
-local to_set = utils.to_set
-local log_err = utils.log_err
-local log_warn = utils.log_warn
-local call_backend = utils.call_backend
+local crypto = require "crypto"
 
 local _M = {}
 
-local function get_redis_client(read_only)
-    local ctx_key = read_only and "red_read" or "red_write"
-    if ngx.ctx[ctx_key] then return ngx.ctx[ctx_key] end
+local function split(str, sep)
+    local t = {}
+    for s in string.gmatch(str, "([^"..sep.."]+)") do
+        t[#t+1] = s
+    end
+    return t
+end
 
+local function to_set(list, force_string)
+    local s = {}
+    for _, v in ipairs(list) do
+        s[force_string and tostring(v) or v] = true
+    end
+    return s
+end
+
+local function log_err(msg, ...) ngx.log(ngx.ERR, "❌ ", msg, ...) end
+local function log_warn(msg, ...) ngx.log(ngx.ERR, "⚠️ ", msg, ...) end
+
+local function get_redis_client(read_only)
     local red = redis:new()
     local redis_timeout = tonumber(ngx.var.redis_timeout) or 1000
     red:set_timeout(redis_timeout)
@@ -23,61 +33,73 @@ local function get_redis_client(read_only)
                  or (ngx.var.redis_write_host or ngx.var.redis_host)
     local ok, err = red:connect(host, 6379)
     if not ok then
-        log_err("Redis ", read_only and "READ" or "WRITE", " error: ", err)
+        log_err("Failed to connect to Redis ("..(read_only and "READ" or "WRITE").."): ", err)
         return nil
     end
-
-    ngx.ctx[ctx_key] = red
     return red
 end
 
-local function acquire_lock(key)
-    local l, err = lock:new("locks", {timeout = 2, exptime = 5})
-    if not l then
-        log_err("Failed to create lock: ", err)
-        return nil
+local function acquire_lock(red, key)
+    local lock_ttl = math.ceil((tonumber(ngx.var.lua_backend_timeout) or 3000) / 1000) + 1
+    local ok, err = red:set(key, "locked", "EX", lock_ttl, "NX")
+    if ok ~= "OK" then
+        --log_warn("Lock not acquired: ", key)
+    else
+        --log_warn("Lock successfully acquired: ", key)
     end
-
-    local elapsed, err = l:lock(key)
-    if not elapsed then
-        log_warn("Lock not acquired (wait timeout): ", key, " - ", err)
-        return nil
-    end
-
-    log_warn("Lock acquired: ", key)
-    return l
+    return ok == "OK"
 end
 
 local function fetch_cache(red, key)
     local val = red:get(key)
     if val and val ~= ngx.null then
-        local data = cjson.decode(val)
+        local decrypted = crypto.decrypt(val)
+        local data = cjson.decode(decrypted)
         if data then return data end
-        log_warn("Failed to decode cache: ", key)
+        --log_warn("Failed to decode cache: ", key)
     else
-        log_warn("Cache missing for key: ", key)
+        --log_warn("Cache missing for key: ", key)
     end
 end
 
 local function respond_from_cache(data, src)
-    local skip_headers = to_set(split(ngx.var.cache_exclude_response_headers or "", ","), false)
-    for k, v in pairs(data.headers or {}) do
-        if not skip_headers[k:lower()] then ngx.header[k] = v end
+    local ok, err = pcall(function()
+        local skip_headers = to_set(split(ngx.var.cache_exclude_response_headers or "", ","))
+        for k, v in pairs(data.headers or {}) do
+            if not skip_headers[k:lower()] then
+                ngx.header[k] = v
+            end
+        end
+        ngx.header["X-Cache"] = src
+        ngx.var.cache_status = src
+        ngx.status = data.status
+        if ngx.req.get_method() ~= "HEAD" then
+            ngx.print(data.body)
+        end
+    end)
+    if not ok then
+        log_err("⚠️ Failed to send cached response: ", err)
+    else
+        --log_warn("Responding from cache [", src, "]")
     end
-    ngx.header["X-Cache"] = src
-    ngx.var.cache_status = src
-    ngx.status = data.status
-    local body = ngx.decode_base64(data.body)
-    if ngx.req.get_method() ~= "HEAD" then ngx.print(body) end
-    log_warn("Responding from cache [", src, "]")
 end
 
-local function respond_locked()
-    log_warn("Request locked and no cache available")
+
+local function respond_locked(red, key_hash)
+    --log_warn("Lock active; attempting to serve stale cache for: ", key_hash)
+    local stale = fetch_cache(red, key_hash)
+    if stale then
+        return respond_from_cache(stale, "STALE-IF-LOCK")
+    end
+
+    --log_warn("No stale cache available, returning 503")
     ngx.status = 503
     ngx.header["Retry-After"] = 2
-    if not ngx.headers_sent then ngx.say("Request is being processed, retry shortly.") end
+    return ngx.exit(503)
 end
+
+
+
 
 function _M.handle()
     local method = ngx.req.get_method()
@@ -88,12 +110,13 @@ function _M.handle()
     local use_body_in_key = ngx.var.cache_use_body_in_key == "true"
     local ttl = tonumber(ngx.var.redis_ttl) or 3600
 
-    local body_data = ""
-    if method == "POST" or method == "PUT" or method == "PATCH" then
-        ngx.req.read_body()
-        body_data = ngx.req.get_body_data() or ""
-    end
+    --log_warn("Request method: ", method)
+    --log_warn("Cacheable methods: ", ngx.var.cache_methods)
+    --log_warn("Cacheable statuses: ", ngx.var.cache_statuses)
+    --log_warn("Configured TTL: ", ttl)
 
+    ngx.req.read_body()
+    local body_data = ngx.req.get_body_data() or ""
     local raw_uri = ngx.var.request_uri
     local headers = ngx.req.get_headers()
 
@@ -102,23 +125,36 @@ function _M.handle()
         local val = headers[h]
         if val then key = key .. "|" .. h .. "=" .. val end
     end
-    if use_body_in_key then key = key .. "|" .. body_data end
-
+    if use_body_in_key and (method == "POST" or method == "PUT" or method == "PATCH") then
+        key = key .. "|" .. body_data
+    end
     local key_hash = ngx.md5(key)
-    local lock_key = "lock:" .. key_hash
     ngx.var.cache_key = key_hash
-    log_warn("Generated cache key: ", key_hash)
+    local lock_key = "lock:" .. key_hash
+
+    --log_warn("Generated Cache Key: ", key_hash)
 
     local red_read = get_redis_client(true)
     local red_write = get_redis_client(false)
-    if not red_read or not red_write then return ngx.exit(500) end
+    if not red_read or not red_write then
+        log_err("Error initializing Redis")
+        return ngx.exit(500)
+    end
 
     if not cache_methods[method] then
-        log_warn("Non-cacheable method: ", method)
-        local backend_method = (method == "HEAD" and treat_head_as_get) and "GET" or method
+        --log_warn("Non-cached method: ", method)
+        local httpc = http.new()
+        httpc:set_timeout(tonumber(ngx.var.lua_backend_timeout) or 3000)
+        local backend_method = (method == "HEAD" and ngx.var.treat_head_as_get == "true") and "GET" or method
+        --log_warn("Backend request: method = ", backend_method, " URI = ", raw_uri)
         local url = ngx.var.backend_url_scheme .. "://" .. ngx.var.backend_url_host .. ":" .. ngx.var.backend_host_port .. raw_uri
+        local res, err = httpc:request_uri(url, {
+            method = backend_method,
+            body = body_data,
+            headers = headers,
+            ssl_verify = ngx.var.lua_ssl_verify == "true"
+        })
 
-        local res, err = call_backend(backend_method, url, body_data, headers)
         if not res then
             log_err("Backend error: ", err)
             ngx.status = 502
@@ -126,7 +162,7 @@ function _M.handle()
             return ngx.exit(502)
         end
 
-        log_warn("Backend response (no cache): ", res.status)
+        --log_warn("Backend response received with status: ", res.status)
         for k, v in pairs(res.headers) do
             if k:lower() ~= "transfer-encoding" and k:lower() ~= "connection" then ngx.header[k] = v end
         end
@@ -135,77 +171,85 @@ function _M.handle()
         return ngx.exit(res.status)
     end
 
-    local lock_obj = acquire_lock(lock_key)
-    if not lock_obj then
-        local cached = fetch_cache(red_read, key_hash)
-        if cached then
-            red_read:close(); red_write:close()
-            return respond_from_cache(cached, "HIT")
-        end
+    if not acquire_lock(red_write, lock_key) then
         red_read:close(); red_write:close()
-        return respond_locked()
+        return respond_locked(red_read, key_hash)
     end
 
     local cached = fetch_cache(red_read, key_hash)
     if cached then
-        log_warn("Cache appeared after lock: ", key_hash)
-        local ok, err = lock_obj:unlock()
-        if not ok then log_err("Failed to release lock: ", err) end
+        --log_warn("Cache populated between lock and fetch: ", key_hash)
+        red_write:del(lock_key)
         red_read:close(); red_write:close()
         return respond_from_cache(cached, "HIT")
     end
 
-    log_warn("Confirmed cache MISS for key: ", key_hash)
+    --log_warn("Confirmed cache MISS, proceeding to backend: ", raw_uri)
     ngx.header["X-Cache"] = "MISS"
     ngx.var.cache_status = "MISS"
 
+    local httpc = http.new()
+    httpc:set_timeout(tonumber(ngx.var.lua_backend_timeout) or 3000)
     local backend_method = (method == "HEAD" and treat_head_as_get) and "GET" or method
-    local url = ngx.var.backend_url_scheme .. "://" .. ngx.var.backend_url_host .. ":" .. ngx.var.backend_host_port .. raw_uri
+    --log_warn("Backend request: method = ", backend_method, " URI = ", raw_uri)
 
-    local res, err = call_backend(backend_method, url, body_data, headers)
+    local url = ngx.var.backend_url_scheme .. "://" .. ngx.var.backend_url_host .. ":" .. ngx.var.backend_host_port .. raw_uri
+    local res, err = httpc:request_uri(url, {
+        method = backend_method,
+        body = body_data,
+        headers = headers,
+        ssl_verify = ngx.var.lua_ssl_verify == "true"
+    })
+
     if not res then
         log_err("Backend error: ", err)
         local stale = fetch_cache(red_read, key_hash)
         if stale then
-            log_warn("Serving stale cache due to backend error")
-            local ok, err = lock_obj:unlock()
-            if not ok then log_err("Failed to release lock: ", err) end
+            --log_warn("Serving stale cache due to error: ", key_hash)
+            red_write:del(lock_key)
             red_read:close(); red_write:close()
             return respond_from_cache(stale, "STALE-IF-ERROR")
         end
         ngx.status = 502
         if not ngx.headers_sent then ngx.say("Error consulting backend") end
-        local ok, err = lock_obj:unlock()
-        if not ok then log_err("Failed to release lock: ", err) end
+        red_write:del(lock_key)
         red_read:close(); red_write:close()
         return ngx.exit(502)
     end
 
-    log_warn("Backend response received: ", res.status)
-    if cache_statuses[tostring(res.status)] then
+    --log_warn("Backend response received with status: ", res.status)
+    if cache_methods[method] and cache_statuses[tostring(res.status)] then
         local filtered = {}
         for k, v in pairs(res.headers) do
-            local kl = k:lower()
-            if kl == "content-type" or kl == "etag" or kl == "cache-control"
-               or kl == "expires" or kl == "content-length" then
+            if k:lower() == "content-type" or k:lower() == "etag" or k:lower() == "cache-control" then
                 filtered[k] = v
             end
         end
 
-        local body_encoded = ngx.encode_base64(res.body)
-        local payload = cjson.encode({ status = res.status, headers = filtered, body = body_encoded })
+        local payload = cjson.encode({ status = res.status, headers = filtered, body = res.body })
         if payload then
-            local ok = red_write:set(key_hash, payload, "EX", ttl)
+            local encrypted = crypto.encrypt(payload)
+            local ok, err = red_write:set(key_hash, encrypted)
             if ok then
-                log_warn("Saved response to cache: ", key_hash)
+                local check_val, check_err = red_write:get(key_hash)
+                if check_val and check_val ~= ngx.null then
+                    local ttl_set, ttl_err = red_write:expire(key_hash, ttl)
+                    if ttl_set then
+                        --log_warn("Response saved to cache: ", key_hash)
+                    else
+                        log_err("Error setting TTL: ", ttl_err)
+                    end
+                else
+                    log_err("Failed to verify key in Redis: ", check_err)
+                end
             else
-                log_err("Failed to save cache for ", key_hash)
+                log_err("Error saving to Redis: ", err)
             end
         else
-            log_err("Serialization failure for cache payload")
+            log_err("Error serializing response for cache")
         end
     else
-        log_warn("Response not cached due to status or method")
+        --log_warn("Method or status not allowed for cache. Not storing.")
     end
 
     for k, v in pairs(res.headers) do
@@ -214,10 +258,8 @@ function _M.handle()
     ngx.status = res.status
     if method ~= "HEAD" then ngx.print(res.body) end
 
-    log_warn("Finishing request, removing lock")
-    local ok, err = lock_obj:unlock()
-    if not ok then log_err("Failed to release lock: ", err) end
-
+    --log_warn("✅ Finishing request, cleaning lock")
+    red_write:del(lock_key)
     red_read:close(); red_write:close()
 end
 
