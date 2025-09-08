@@ -11,6 +11,7 @@ services:
       dockerfile: Dockerfile
     logging:
       driver: none
+    attach: false
     container_name: proxy
     depends_on:
       - redis
