@@ -1,0 +1,26 @@
+name: Docker Compose + K6 Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start containers
+        run: docker-compose up -d --build
+
+      - name: Run K6 tests
+        uses: grafana/k6-action@v0.3
+        with:
+          filename: k6.js
+
+      - name: Stop containers
+        run: docker-compose down
