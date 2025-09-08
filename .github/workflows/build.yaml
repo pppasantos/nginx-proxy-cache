@@ -17,10 +17,13 @@ jobs:
       - name: Build and start containers
         run: docker-compose up -d --build
 
-      - name: Run K6 tests
-        uses: grafana/k6-action@v0.3
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 tests
+        uses: grafana/run-k6-action@v1
         with:
-          filename: k6.js
+          filename: tests/script.js
 
       - name: Stop containers
         run: docker-compose down
