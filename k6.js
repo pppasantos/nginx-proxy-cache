@@ -13,7 +13,7 @@ export default function () {
   const id = ids[current % ids.length];
   current++;
 
-  const baseURL = 'http://localhost:8889';
+  const baseURL = 'http://nginx:8889';
   const hostHeader = { Host: 'rickandmortyapi.com' };
 
   // JSON request
