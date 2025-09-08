@@ -5,7 +5,7 @@ services:
     ports:
       - "6379:6379"
 
-  nginx-proxy-cache:
+  nginx:
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,3 +15,10 @@ services:
     ports:
       - "8889:8889"
       - "8890:8890"
+  k6:
+    image: grafana/k6
+    depends_on:
+      - nginx
+    volumes:
+      - ./:/src
+    entrypoint: ["k6", "run", "/src/k6.js"]
