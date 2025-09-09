@@ -31,7 +31,7 @@ RUN wget http://nginx.org/download/nginx-1.26.0.tar.gz && \
     tar -zxvf nginx-1.26.0.tar.gz
 RUN git clone https://github.com/openresty/lua-nginx-module.git && \
     git clone https://github.com/openresty/lua-resty-core.git && \
-    git clone https://github.com/openresty/lua-resty-lrucache.git && \
+    git clone https://github.com/openresty/lua-resty-lrucache.git
 RUN mkdir -p /usr/local/lib/lua /usr/local/share/lua/5.1 && \
     cp -r lua-resty-core/lib/resty /usr/local/share/lua/5.1/ && \
     cp -r lua-resty-lrucache/lib/resty /usr/local/share/lua/5.1/
