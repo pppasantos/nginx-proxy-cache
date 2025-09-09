@@ -21,10 +21,11 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build proxy image
-        run: docker build -t pppasantos/nginx-proxy-cache:latest ./proxy
+        run: docker build -t pppasantos/nginx-proxy-cache:latest .
 
       - name: Push proxy image
         run: docker push pppasantos/nginx-proxy-cache:latest
 
       - name: Build and start containers for testing
         run: docker compose up --build --abort-on-container-exit
+
