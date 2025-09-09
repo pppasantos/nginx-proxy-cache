@@ -15,21 +15,21 @@ function _M.invalidate_key()
     local body_data = ngx.req.get_body_data()
     if not body_data then
         ngx.status = 400
-        return ngx.say("Corpo da requisição ausente ou inválido.")
+        return ngx.say("Request body missing or invalid.")
     end
  
     local decoded, err = cjson.decode(body_data)
     if not decoded or type(decoded.keys) ~= "table" then
         ngx.status = 400
-        return ngx.say("Formato inválido. Esperado: { \"keys\": [\"chave1\", \"chave2\"] }")
+        return ngx.say("Invalid format. Expected: { \"keys\": [\"key1\", \"key2\"] }")
     end
  
-    -- Usando a função do redis.lua para obter cliente Redis
-    local red = redis.get_redis_client(false)  -- false para write host
+    -- Using the function from redis.lua to get Redis client
+    local red = redis.get_redis_client(false)  -- false for write host
     if not red then
-        log.log_err("Falha ao conectar ao Redis")
+        log.log_err("Failed to connect to Redis")
         ngx.status = 500
-        return ngx.say("Erro de conexão Redis")
+        return ngx.say("Redis connection error")
     end
  
     local deleted = 0
@@ -40,13 +40,13 @@ function _M.invalidate_key()
         if res and res > 0 then
             deleted = deleted + res
             table.insert(removed_keys, key)
-            log.log_info("Chave removida: ", key)
+            log.log_info("Key removed: ", key)
         elseif err then
-            log.log_err("Erro ao deletar chave: ", key, " -> ", err)
+            log.log_err("Error deleting key: ", key, " -> ", err)
         end
     end
  
-    log.log_info("Total removido: ", deleted, " | chaves: ", table.concat(removed_keys, ", "))
+    log.log_info("Total deleted: ", deleted, " | keys: ", table.concat(removed_keys, ", "))
  
     ngx.header.content_type = "application/json"
     ngx.say(cjson.encode({

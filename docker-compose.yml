@@ -1,6 +1,9 @@
 services:
   redis:
     image: redis:8.2-m01-alpine3.22
+    logging:
+      driver: none
+    attach: false
     ports:
       - "6379:6379"
 
