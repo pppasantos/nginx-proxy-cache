@@ -29,7 +29,8 @@ RUN echo "http://nginx.org/packages/alpine/v3.12/main" >> /etc/apk/repositories 
     mv nginx_signing.rsa.pub /etc/apk/keys/
 RUN wget http://nginx.org/download/nginx-1.26.0.tar.gz && \
     tar -zxvf nginx-1.26.0.tar.gz
-RUN git clone https://github.com/openresty/lua-nginx-module.git && \
+RUN git clone https://github.com/openresty/headers-more-nginx-module.git  && \
+    git clone https://github.com/openresty/lua-nginx-module.git && \
     git clone https://github.com/openresty/lua-resty-core.git && \
     git clone https://github.com/openresty/lua-resty-lrucache.git
 RUN mkdir -p /usr/local/lib/lua /usr/local/share/lua/5.1 && \
@@ -37,6 +38,7 @@ RUN mkdir -p /usr/local/lib/lua /usr/local/share/lua/5.1 && \
     cp -r lua-resty-lrucache/lib/resty /usr/local/share/lua/5.1/
 WORKDIR /tmp/nginx-1.26.0
 RUN ./configure \
+    --add-module=/tmp/headers-more-nginx-module \
     --add-module=/tmp/lua-nginx-module \
     --with-ld-opt="-Wl,-rpath,/usr/lib" \
     --with-http_ssl_module \
