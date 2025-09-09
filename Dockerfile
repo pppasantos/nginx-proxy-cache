@@ -38,7 +38,6 @@ RUN mkdir -p /usr/local/lib/lua /usr/local/share/lua/5.1 && \
 WORKDIR /tmp/nginx-1.26.0
 RUN ./configure \
     --add-module=/tmp/lua-nginx-module \
-    --add-module=/tmp/lua-upstream-nginx-module \
     --with-ld-opt="-Wl,-rpath,/usr/lib" \
     --with-http_ssl_module \
     --with-http_realip_module \
