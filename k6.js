@@ -2,11 +2,11 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export const options = {
-  vus: 1,
-  iterations: 1400,
+  vus: 2,
+  iterations: 1652,
 };
 
-const ids = Array.from({ length: 700 }, (_, i) => i + 1);
+const ids = Array.from({ length: 826 }, (_, i) => i + 1);
 let current = 0;
 
 export default function () {
