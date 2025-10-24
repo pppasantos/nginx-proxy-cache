@@ -1,3 +1,5 @@
+local _M = {}
+
 function _M.capture()
     local headers = ngx.resp.get_headers()
     local headers_str = ""
