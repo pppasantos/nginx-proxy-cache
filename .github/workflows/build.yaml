@@ -3,6 +3,10 @@ name: Docker Compose + K6 Pipeline
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  release:
+    types: [published]
 
 jobs:
   build-test-and-push:
@@ -10,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
@@ -20,12 +26,34 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: pppasantos/nginx-proxy-cache
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Determine Docker tag
+        id: tag
+        run: |
+          if [[ ${{ github.event_name }} == 'push' && ${{ github.ref }} == 'refs/heads/main' ]]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          elif [[ ${{ github.event_name }} == 'release' ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build proxy image
-        run: docker build -t pppasantos/nginx-proxy-cache:latest .
+        run: docker build -t pppasantos/nginx-proxy-cache:${{ steps.tag.outputs.tag }} .
 
       - name: Push proxy image
-        run: docker push pppasantos/nginx-proxy-cache:latest
+        run: docker push pppasantos/nginx-proxy-cache:${{ steps.tag.outputs.tag }}
 
       - name: Build and start containers for testing
         run: docker compose up --build --abort-on-container-exit
-
