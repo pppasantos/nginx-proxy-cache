@@ -110,7 +110,7 @@ COPY config/* /usr/local/nginx/conf/
 COPY lua/* /usr/local/lib/lua/
 RUN mkdir -p /var/log/nginx /var/cache/nginx/rpaas/nginx /var/cache/nginx/rpaas/nginx_tmp && \
     touch /var/log/nginx/access.log /var/log/nginx/error.log && \
-    chown -R nginx:nginx /var/log/nginx /var/cache/nginx /usr/local/lib/lua /usr/local/nginx
+    chown -R nginx:nginx /var/log/nginx /var/cache/nginx /usr/local/lib/lua /usr/local/nginx /run/
 USER nginx
 EXPOSE 8889 8890
 ENTRYPOINT ["/bin/bash", "-c", "nginx -g 'daemon off;'"]
