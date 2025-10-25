@@ -87,7 +87,7 @@ jobs:
       - name: Run basic security scan
         run: |
           echo "=== Basic Security Check ==="
-          docker scan ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --accept-license --file Dockerfile || echo "Scan completed"
+          docker scan ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest  --file Dockerfile || echo "Scan completed"
 
       - name: Build and start containers for testing
         run: docker compose up --build --abort-on-container-exit
@@ -95,3 +95,4 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker system prune -f
+
