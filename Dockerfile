@@ -1,4 +1,4 @@
-FROM alpine:3.19.1 as builder
+FROM alpine:3.22 as builder
 RUN apk add --no-cache \
     bash \
     build-base \
