@@ -1,4 +1,4 @@
-FROM alpine:3.22 as builder
+FROM alpine:3.21.5 as builder
 RUN apk add --no-cache \
     bash \
     build-base \
@@ -75,7 +75,7 @@ RUN luarocks-5.1 install lua-resty-redis && \
     luarocks-5.1 install lua-resty-prometheus && \
     luarocks-5.1 install lua-resty-lock && \
     luarocks-5.1 install luaossl
-FROM alpine:3.19.1
+FROM alpine:3.21.5
 RUN apk add --no-cache \
     bash \
     build-base \
