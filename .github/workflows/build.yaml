@@ -117,7 +117,7 @@ jobs:
       - name: Run security scan
         run: |
           echo "=== Security Scan ==="
-          docker scan ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --file Dockerfile > security-scan.txt 2>&1 || echo "Scan completed with warnings"
+          docker scan ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest > security-scan.txt 2>&1 || echo "Scan completed with warnings"
 
       - name: Upload security artifacts
         uses: actions/upload-artifact@v4
@@ -158,3 +158,4 @@ jobs:
         if: always()
         run: |
           docker system prune -f
+
