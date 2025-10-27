@@ -97,50 +97,9 @@ jobs:
           echo "TOP PACKAGES:" >> sbom-analysis.txt
           head -50 sbom-report.txt >> sbom-analysis.txt
 
-      - name: Install Snyk CLI (without auth)
+      - name: Security Scan with Trivy
         run: |
-          # Instala Snyk CLI sem configurar autenticação
-          npm install -g snyk
-          echo "Snyk version:"
-          snyk --version
-
-      - name: Snyk Container Scan (Local Mode)
-        run: |
-          echo "=== Snyk Container Security Scan (Local Mode) ==="
-          
-          # Configurar Snyk para modo offline/local
-          export SNYK_CFG_DISABLE_ANALYTICS=1
-          
-          # Scan local sem autenticação - força modo não autenticado
-          snyk container test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --file=Dockerfile \
-            --severity-threshold=high \
-            --org=local-scan \
-            --json > snyk-container-scan.json 2>&1 || true
-          
-          # Scan para relatório legível
-          snyk container test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --file=Dockerfile \
-            --severity-threshold=high \
-            --org=local-scan > snyk-container-report.txt 2>&1 || true
-          
-          echo "Container scan completed (local mode)"
-
-      - name: Snyk Code Scan (Local Mode)
-        run: |
-          echo "=== Snyk Code Security Scan (Local Mode) ==="
-          
-          # Configurar Snyk para modo offline/local
-          export SNYK_CFG_DISABLE_ANALYTICS=1
-          
-          # Scan do código fonte em modo local
-          snyk code test --severity-threshold=high --org=local-scan > snyk-code-report.txt 2>&1 || true
-          
-          echo "Code scan completed (local mode)"
-
-      - name: Alternative Security Scan with Trivy
-        run: |
-          echo "=== Alternative Security Scan with Trivy ==="
+          echo "=== Security Scan with Trivy ==="
           
           # Instalar Trivy (alternativa ao Snyk que funciona offline)
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
@@ -161,8 +120,6 @@ jobs:
           echo "SECURITY FEATURES:" >> build-summary.txt
           echo "✅ Provenance: Enabled" >> build-summary.txt
           echo "✅ SBOM: Generated with Syft" >> build-summary.txt
-          echo "✅ Snyk Container Scan: Completed (Local Mode)" >> build-summary.txt
-          echo "✅ Snyk Code Scan: Completed (Local Mode)" >> build-summary.txt
           echo "✅ Trivy Security Scan: Completed" >> build-summary.txt
           echo "✅ Cache: GitHub Actions Cache" >> build-summary.txt
           echo "" >> build-summary.txt
@@ -179,9 +136,6 @@ jobs:
             sbom-detailed.json
             sbom-report.txt
             sbom-analysis.txt
-            snyk-container-report.txt
-            snyk-container-scan.json
-            snyk-code-report.txt
             trivy-scan.txt
             trivy-scan.json
             build-summary.txt
@@ -196,17 +150,13 @@ jobs:
           echo "🔐 Security Features:"
           echo "   ✅ Provenance attestation"
           echo "   ✅ SBOM generation" 
-          echo "   ✅ Snyk Container scan (Local Mode)"
-          echo "   ✅ Snyk Code scan (Local Mode)"
           echo "   ✅ Trivy security scan"
           echo "   ✅ Build cache enabled"
           echo ""
           echo "📊 Artifacts generated:"
           echo "   - sbom-detailed.json (Complete SBOM)"
           echo "   - sbom-analysis.txt (SBOM summary)"
-          echo "   - snyk-container-report.txt (Vulnerability report)"
-          echo "   - snyk-code-report.txt (Code security report)"
-          echo "   - trivy-scan.txt (Alternative security scan)"
+          echo "   - trivy-scan.txt (security scan)"
           echo ""
           echo "🚀 Image ready for use:"
           echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
@@ -218,3 +168,4 @@ jobs:
         if: always()
         run: |
           docker system prune -f
+
