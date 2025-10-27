@@ -1,4 +1,4 @@
-name: Docker Compose + K6 Pipeline
+name: Build
 
 on:
   push:
@@ -33,33 +33,35 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract safe branch name
+      - name: Extract branch info
         id: branch
         run: |
-          # Remove caracteres inválidos do nome da branch
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            BRANCH_NAME="pr-$GITHUB_SHA"
+          else
+            BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          fi
+          # Sanitize branch name
           SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9.-]/-/g' | cut -c 1-30)
-          echo "safe_branch_name=$SAFE_BRANCH_NAME" >> $GITHUB_OUTPUT
-          echo "Original branch: $BRANCH_NAME"
-          echo "Safe branch: $SAFE_BRANCH_NAME"
+          echo "branch_name=$SAFE_BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "is_default_branch=$([ \"$GITHUB_REF\" = \"refs/heads/main\" ] && echo \"true\" || echo \"false\")" >> $GITHUB_OUTPUT
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            # Para branch main, usa latest
-            type=raw,value=latest,enable={{is_default_branch}}
-            # Para outras branches, usa o nome seguro da branch
-            type=raw,value={{branch}},enable={{not is_default_branch}}
-            # Para PRs
-            type=raw,value=pr-{{sha}},enable={{is_pr}}
-            # Para releases semânticas
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            # SHA do commit (curto)
-            type=sha,prefix=
+      - name: Generate Docker tags
+        id: tags
+        run: |
+          TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          
+          # Se não for a branch main, adiciona tag com nome da branch
+          if [ "${{ steps.branch.outputs.is_default_branch }}" = "false" ]; then
+            TAGS="$TAGS,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch.outputs.branch_name }}"
+          fi
+          
+          # Adiciona tag com SHA curto
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)
+          TAGS="$TAGS,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$SHORT_SHA"
+          
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "Generated tags: $TAGS"
 
       - name: Build and push with attestations and cache
         uses: docker/build-push-action@v5
@@ -68,8 +70,7 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: true
@@ -130,8 +131,8 @@ jobs:
           echo "=== BUILD SUMMARY REPORT ===" > build-summary.txt
           echo "Build Time: $(date -u)" >> build-summary.txt
           echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> build-summary.txt
-          echo "Tags: ${{ steps.meta.outputs.tags }}" >> build-summary.txt
-          echo "Branch: ${{ steps.branch.outputs.safe_branch_name }}" >> build-summary.txt
+          echo "Tags: ${{ steps.tags.outputs.tags }}" >> build-summary.txt
+          echo "Branch: ${{ steps.branch.outputs.branch_name }}" >> build-summary.txt
           echo "" >> build-summary.txt
           echo "SECURITY FEATURES:" >> build-summary.txt
           echo "✅ Provenance: Enabled" >> build-summary.txt
@@ -162,8 +163,8 @@ jobs:
           echo "🎉 BUILD COMPLETED SUCCESSFULLY 🎉"
           echo "==================================="
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "🏷️  Tags: ${{ steps.meta.outputs.tags }}"
-          echo "🌿 Branch: ${{ steps.branch.outputs.safe_branch_name }}"
+          echo "🏷️  Tags: ${{ steps.tags.outputs.tags }}"
+          echo "🌿 Branch: ${{ steps.branch.outputs.branch_name }}"
           echo "🔐 Security Features:"
           echo "   ✅ Provenance attestation"
           echo "   ✅ SBOM generation" 
