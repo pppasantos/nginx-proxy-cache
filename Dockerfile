@@ -75,7 +75,8 @@ RUN luarocks-5.1 install lua-resty-redis && \
     luarocks-5.1 install lua-resty-prometheus && \
     luarocks-5.1 install lua-resty-lock && \
     luarocks-5.1 install luaossl && \
-    luarocks-5.1 install lua-resty-string
+    luarocks-5.1 install lua-resty-string && \
+    luarocks-5.1 install lua-resty-openssl
 FROM alpine:3.21.5
 RUN apk add --no-cache \
     bash \
