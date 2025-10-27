@@ -84,6 +84,7 @@ RUN apk add --no-cache \
     pcre-dev \
     zlib-dev \
     curl \
+    vim \
     git \
     stunnel \
     luajit \
