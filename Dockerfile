@@ -9,7 +9,7 @@ RUN apk add --no-cache \
     curl \
     git \
     luajit \
-    luajit-dev \
+    luajit-dev=2.1_p20240815-r1 \
     lua5.1 \
     lua5.1-dev \
     lua-cjson \
