@@ -6,6 +6,8 @@ services:
     attach: false
     ports:
       - "6379:6379"
+    networks:
+      - redis_network
 
   nginx:
     build:
@@ -19,10 +21,24 @@ services:
     ports:
       - "8889:8889"
       - "8890:8890"
+    networks:
+      - redis_network
+      - default
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    dns_search:
+      - .
+
   k6:
     image: grafana/k6
     depends_on:
       - nginx
     volumes:
       - ./:/src
-    entrypoint: ["k6", "run", "/src/k6.js"]
+    networks:
+      - default
+
+networks:
+  redis_network:
+    driver: bridge
