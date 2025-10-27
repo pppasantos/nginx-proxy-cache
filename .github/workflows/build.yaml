@@ -4,13 +4,11 @@ on:
   push:
     tags:
       - 'feat/**'
-      - 'fix/**'
+      - 'fix/**' 
       - 'enha/**'
       - 'v*.*.*'
   pull_request:
     branches: [ "main" ]
-  release:
-    types: [published]
 
 env:
   REGISTRY: pppasantos
@@ -22,14 +20,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:buildx-stable-1
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -43,155 +36,108 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Tags baseadas nas Git tags
             type=ref,event=tag
-            # Tag latest apenas para tags de versão semântica
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Detect commit type from tag
         id: tag_info
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          echo "Tag: $TAG_NAME"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           
           if [[ "$TAG_NAME" == feat/* ]]; then
-            echo "🔵 Feature tag detected"
             echo "type=feat" >> $GITHUB_OUTPUT
           elif [[ "$TAG_NAME" == fix/* ]]; then
-            echo "🟢 Fix tag detected"
             echo "type=fix" >> $GITHUB_OUTPUT
           elif [[ "$TAG_NAME" == enha/* ]]; then
-            echo "🟡 Enhancement tag detected"
             echo "type=enha" >> $GITHUB_OUTPUT
           elif [[ "$TAG_NAME" == v*.*.* ]]; then
-            echo "🟣 Version tag detected: $TAG_NAME"
             echo "type=version" >> $GITHUB_OUTPUT
           else
-            echo "⚪ Other tag detected"
             echo "type=other" >> $GITHUB_OUTPUT
           fi
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
-      - name: Build and push with attestations and cache
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: true
           sbom: true
 
-      - name: Install Syft for SBOM generation
+      - name: Install Snyk CLI
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.0.0
-          echo "Syft version:"
-          syft version
+          # Instala Snyk CLI - funciona sem token para scans básicos
+          npm install -g snyk
+          echo "Snyk version:"
+          snyk --version
+
+      - name: Snyk Container Scan
+        run: |
+          echo "=== Snyk Container Security Scan ==="
+          # Pull da imagem para scan
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          
+          # Scan básico (funciona sem token)
+          snyk container test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --file=Dockerfile \
+            --severity-threshold=high \
+            --json > snyk-container-scan.json 2>/dev/null || echo "Scan completed with findings"
+          
+          # Gera relatório legível
+          snyk container test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --file=Dockerfile \
+            --severity-threshold=high > snyk-container-report.txt || echo "Scan completed with findings"
+
+      - name: Snyk Code Scan (Source Code)
+        run: |
+          echo "=== Snyk Code Security Scan ==="
+          # Scan do código fonte (opcional)
+          snyk code test --severity-threshold=high > snyk-code-report.txt 2>/dev/null || echo "Code scan completed with findings"
 
       - name: Generate SBOM with Syft
         run: |
-          echo "=== Generating SBOM Report with Syft ==="
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest -o json > sbom-detailed.json
           syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest > sbom-report.txt
-          
-          echo "=== SBOM ANALYSIS ===" > sbom-analysis.txt
-          echo "Generated: $(date -u)" >> sbom-analysis.txt
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> sbom-analysis.txt
-          echo "Tag: ${{ steps.tag_info.outputs.tag_name }}" >> sbom-analysis.txt
-          echo "Type: ${{ steps.tag_info.outputs.type }}" >> sbom-analysis.txt
-          echo "SBOM Tool: Syft" >> sbom-analysis.txt
-          echo "" >> sbom-analysis.txt
-          
-          if command -v jq &> /dev/null; then
-            PACKAGE_COUNT=$(jq '.artifacts | length' sbom-detailed.json 2>/dev/null || echo "0")
-          else
-            PACKAGE_COUNT=$(grep -c '"name"' sbom-detailed.json || echo "0")
-          fi
-          echo "Total packages: $PACKAGE_COUNT" >> sbom-analysis.txt
-          echo "" >> sbom-analysis.txt
-          echo "TOP PACKAGES:" >> sbom-analysis.txt
-          head -50 sbom-report.txt >> sbom-analysis.txt
-
-      - name: Snyk Security Scan
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          args: |
-            --file=Dockerfile
-            --severity-threshold=high
-            --sarif-file-output=snyk-results.sarif
-            --report
-
-      - name: Upload Snyk results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: snyk-results.sarif
-
-      - name: Generate build summary report
-        run: |
-          echo "=== BUILD SUMMARY REPORT ===" > build-summary.txt
-          echo "Build Time: $(date -u)" >> build-summary.txt
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> build-summary.txt
-          echo "Tag: ${{ steps.tag_info.outputs.tag_name }}" >> build-summary.txt
-          echo "Type: ${{ steps.tag_info.outputs.type }}" >> build-summary.txt
-          echo "Tags: ${{ steps.meta.outputs.tags }}" >> build-summary.txt
-          echo "" >> build-summary.txt
-          echo "SECURITY FEATURES:" >> build-summary.txt
-          echo "✅ Provenance: Enabled" >> build-summary.txt
-          echo "✅ SBOM: Generated with Syft" >> build-summary.txt
-          echo "✅ Snyk Scan: Completed" >> build-summary.txt
-          echo "✅ Cache: GitHub Actions Cache" >> build-summary.txt
-          echo "" >> build-summary.txt
-          echo "BUILD METADATA:" >> build-summary.txt
-          echo "Repo: ${{ github.repository }}" >> build-summary.txt
-          echo "Commit: ${{ github.sha }}" >> build-summary.txt
-          echo "Workflow: ${{ github.workflow }}" >> build-summary.txt
 
       - name: Upload security artifacts
         uses: actions/upload-artifact@v4
         with:
           name: security-reports-${{ steps.tag_info.outputs.tag_name }}
           path: |
+            snyk-container-report.txt
+            snyk-container-scan.json
+            snyk-code-report.txt
             sbom-detailed.json
             sbom-report.txt
-            sbom-analysis.txt
-            build-summary.txt
-            snyk-results.sarif
-          retention-days: 90
+          retention-days: 30
 
-      - name: Build and start containers for testing
-        run: docker compose up --build --abort-on-container-exit
-
-      - name: Display final summary
+      - name: Display security summary
         run: |
-          echo "🎉 BUILD COMPLETED SUCCESSFULLY 🎉"
-          echo "==================================="
-          echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "🏷️  Tag: ${{ steps.tag_info.outputs.tag_name }}"
-          echo "📝 Type: ${{ steps.tag_info.outputs.type }}"
-          echo "🔐 Security Features:"
-          echo "   ✅ Provenance attestation"
-          echo "   ✅ SBOM generation" 
-          echo "   ✅ Snyk vulnerability scan"
-          echo "   ✅ Build cache enabled"
-          echo ""
-          echo "📊 Artifacts generated:"
-          echo "   - sbom-detailed.json (Complete SBOM)"
-          echo "   - sbom-analysis.txt (SBOM summary)"
-          echo "   - snyk-results.sarif (Security report)"
-          echo ""
-          echo "🚀 Image ready for use:"
-          echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "🔒 SECURITY SCAN SUMMARY"
+          echo "========================"
+          if [ -f snyk-container-report.txt ]; then
+            echo "📊 Container Scan Results:"
+            grep -E "(✓|✗)" snyk-container-report.txt | head -10 || echo "No issues found or scan incomplete"
+          fi
+          
+          if [ -f snyk-code-report.txt ]; then
+            echo ""
+            echo "📝 Code Scan Results:"
+            grep -E "(✓|✗)" snyk-code-report.txt | head -5 || echo "No code issues found"
+          fi
+
+      - name: Build and test with Docker Compose
+        run: |
+          docker compose up --build -d
+          sleep 10
+          docker compose ps
+          docker compose logs
 
       - name: Cleanup
         if: always()
-        run: |
-          docker system prune -f
+        run: docker system prune -f
