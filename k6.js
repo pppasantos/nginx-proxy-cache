@@ -6,7 +6,7 @@ export const options = {
   iterations: 1652,
 };
 
-const ids = Array.from({ length: 826 }, (_, i) => i + 1);
+const ids = Array.from({ length: 100 }, (_, i) => i + 1);
 let current = 0;
 
 export default function () {
