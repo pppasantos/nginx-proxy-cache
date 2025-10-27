@@ -36,6 +36,7 @@ services:
       - nginx
     volumes:
       - ./:/src
+    entrypoint: ["k6", "run", "/src/k6.js"]
     networks:
       - default
 
