@@ -2,7 +2,11 @@ name: Docker Compose + K6 Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    tags:
+      - 'feat/**'
+      - 'fix/**'
+      - 'enha/**'
+      - 'v*.*.*'
   pull_request:
     branches: [ "main" ]
   release:
@@ -39,12 +43,34 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+            # Tags baseadas nas Git tags
+            type=ref,event=tag
+            # Tag latest apenas para tags de versão semântica
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Detect commit type from tag
+        id: tag_info
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "Tag: $TAG_NAME"
+          
+          if [[ "$TAG_NAME" == feat/* ]]; then
+            echo "🔵 Feature tag detected"
+            echo "type=feat" >> $GITHUB_OUTPUT
+          elif [[ "$TAG_NAME" == fix/* ]]; then
+            echo "🟢 Fix tag detected"
+            echo "type=fix" >> $GITHUB_OUTPUT
+          elif [[ "$TAG_NAME" == enha/* ]]; then
+            echo "🟡 Enhancement tag detected"
+            echo "type=enha" >> $GITHUB_OUTPUT
+          elif [[ "$TAG_NAME" == v*.*.* ]]; then
+            echo "🟣 Version tag detected: $TAG_NAME"
+            echo "type=version" >> $GITHUB_OUTPUT
+          else
+            echo "⚪ Other tag detected"
+            echo "type=other" >> $GITHUB_OUTPUT
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
       - name: Build and push with attestations and cache
         uses: docker/build-push-action@v5
@@ -62,7 +88,6 @@ jobs:
 
       - name: Install Syft for SBOM generation
         run: |
-          # Instalar Syft - ferramenta especializada em SBOM
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.0.0
           echo "Syft version:"
           syft version
@@ -70,24 +95,18 @@ jobs:
       - name: Generate SBOM with Syft
         run: |
           echo "=== Generating SBOM Report with Syft ==="
-          
-          # Pull da imagem para garantir que está disponível localmente
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          
-          # Gerar SBOM completo com Syft
           syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest -o json > sbom-detailed.json
-          
-          # Gerar SBOM em texto simples
           syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest > sbom-report.txt
           
-          # Criar análise resumida
           echo "=== SBOM ANALYSIS ===" > sbom-analysis.txt
           echo "Generated: $(date -u)" >> sbom-analysis.txt
           echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> sbom-analysis.txt
+          echo "Tag: ${{ steps.tag_info.outputs.tag_name }}" >> sbom-analysis.txt
+          echo "Type: ${{ steps.tag_info.outputs.type }}" >> sbom-analysis.txt
           echo "SBOM Tool: Syft" >> sbom-analysis.txt
           echo "" >> sbom-analysis.txt
           
-          # Extrair contagem de pacotes (com fallback)
           if command -v jq &> /dev/null; then
             PACKAGE_COUNT=$(jq '.artifacts | length' sbom-detailed.json 2>/dev/null || echo "0")
           else
@@ -98,16 +117,37 @@ jobs:
           echo "TOP PACKAGES:" >> sbom-analysis.txt
           head -50 sbom-report.txt >> sbom-analysis.txt
 
+      - name: Snyk Security Scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          args: |
+            --file=Dockerfile
+            --severity-threshold=high
+            --sarif-file-output=snyk-results.sarif
+            --report
+
+      - name: Upload Snyk results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-results.sarif
+
       - name: Generate build summary report
         run: |
           echo "=== BUILD SUMMARY REPORT ===" > build-summary.txt
           echo "Build Time: $(date -u)" >> build-summary.txt
           echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> build-summary.txt
+          echo "Tag: ${{ steps.tag_info.outputs.tag_name }}" >> build-summary.txt
+          echo "Type: ${{ steps.tag_info.outputs.type }}" >> build-summary.txt
           echo "Tags: ${{ steps.meta.outputs.tags }}" >> build-summary.txt
           echo "" >> build-summary.txt
           echo "SECURITY FEATURES:" >> build-summary.txt
           echo "✅ Provenance: Enabled" >> build-summary.txt
           echo "✅ SBOM: Generated with Syft" >> build-summary.txt
+          echo "✅ Snyk Scan: Completed" >> build-summary.txt
           echo "✅ Cache: GitHub Actions Cache" >> build-summary.txt
           echo "" >> build-summary.txt
           echo "BUILD METADATA:" >> build-summary.txt
@@ -115,49 +155,43 @@ jobs:
           echo "Commit: ${{ github.sha }}" >> build-summary.txt
           echo "Workflow: ${{ github.workflow }}" >> build-summary.txt
 
-      - name: Run security scan
-        run: |
-          echo "=== Security Scan ==="
-          docker scan ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest > security-scan.txt 2>&1 || echo "Scan completed with warnings"
-
       - name: Upload security artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: security-reports
+          name: security-reports-${{ steps.tag_info.outputs.tag_name }}
           path: |
             sbom-detailed.json
             sbom-report.txt
             sbom-analysis.txt
             build-summary.txt
-            security-scan.txt
+            snyk-results.sarif
           retention-days: 90
+
+      - name: Build and start containers for testing
+        run: docker compose up --build --abort-on-container-exit
 
       - name: Display final summary
         run: |
           echo "🎉 BUILD COMPLETED SUCCESSFULLY 🎉"
           echo "==================================="
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "🏷️  Tags: ${{ steps.meta.outputs.tags }}"
+          echo "🏷️  Tag: ${{ steps.tag_info.outputs.tag_name }}"
+          echo "📝 Type: ${{ steps.tag_info.outputs.type }}"
           echo "🔐 Security Features:"
           echo "   ✅ Provenance attestation"
           echo "   ✅ SBOM generation" 
-          echo "   ✅ Vulnerability scan"
+          echo "   ✅ Snyk vulnerability scan"
           echo "   ✅ Build cache enabled"
           echo ""
           echo "📊 Artifacts generated:"
           echo "   - sbom-detailed.json (Complete SBOM)"
           echo "   - sbom-analysis.txt (SBOM summary)"
-          echo "   - security-scan.txt (Vulnerability report)"
+          echo "   - snyk-results.sarif (Security report)"
           echo ""
           echo "🚀 Image ready for use:"
           echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-
-      - name: Build and start containers for testing
-        run: docker compose up --build --abort-on-container-exit
 
       - name: Cleanup
         if: always()
         run: |
           docker system prune -f
-
-
