@@ -33,7 +33,6 @@ RUN git clone https://github.com/openresty/headers-more-nginx-module.git && \
     git clone https://github.com/openresty/lua-nginx-module.git && \
     git clone https://github.com/openresty/lua-resty-core.git && \
     git clone https://github.com/openresty/lua-resty-lrucache.git && \
-    git clone https://github.com/openresty/srcache-nginx-module.git && \
     git clone https://github.com/openresty/lua-upstream-nginx-module.git
 RUN mkdir -p /usr/local/lib/lua /usr/local/share/lua/5.1 && \
     cp -r lua-resty-core/lib/resty /usr/local/share/lua/5.1/ && \
@@ -44,7 +43,6 @@ RUN ./configure \
     --add-module=/tmp/ngx_devel_kit \
     --add-module=/tmp/set-misc-nginx-module \
     --add-module=/tmp/lua-nginx-module \
-    --add-module=/tmp/srcache-nginx-module \
     --add-module=/tmp/lua-upstream-nginx-module \
     --with-ld-opt="-Wl,-rpath,/usr/lib" \
     --with-http_ssl_module \
