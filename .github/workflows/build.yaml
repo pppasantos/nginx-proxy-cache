@@ -2,11 +2,17 @@ name: Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: 
+      - "main"
+      - "feature/**"   # Branches de feature
+      - "fix/**"       # Branches de fix
+      - "hotfix/**"    # Branches de hotfix
+      - "release/**"   # Branches de release
+    tags:
+      - "v*"           # Tags de versão (v1.0.0, v2.1.3, etc)
+      - "**"           # Ou todas as tags
   pull_request:
     branches: [ "main" ]
-  release:
-    types: [published]
 
 env:
   REGISTRY: pppasantos
@@ -33,32 +39,71 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract branch info
-        id: branch
+      - name: Extract Git context
+        id: git
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            BRANCH_NAME="pr-$GITHUB_SHA"
-          else
+          # Detecta se é tag, branch ou PR
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # É uma tag - extrai apenas o nome da tag
+            GIT_TAG=${GITHUB_REF#refs/tags/}
+            echo "type=tag" >> $GITHUB_OUTPUT
+            echo "ref=$GIT_TAG" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "Detected tag: $GIT_TAG"
+          elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            # É a branch main
+            echo "type=branch" >> $GITHUB_OUTPUT
+            echo "ref=main" >> $GITHUB_OUTPUT
+            echo "is_main=true" >> $GITHUB_OUTPUT
+            echo "Detected branch: main"
+          elif [[ "$GITHUB_REF" == refs/heads/* ]]; then
+            # É outro branch
             BRANCH_NAME=${GITHUB_REF#refs/heads/}
+            SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9.-]/-/g' | cut -c 1-30)
+            echo "type=branch" >> $GITHUB_OUTPUT
+            echo "ref=$SAFE_BRANCH_NAME" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "Detected branch: $BRANCH_NAME (safe: $SAFE_BRANCH_NAME)"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            # É um PR
+            echo "type=pr" >> $GITHUB_OUTPUT
+            echo "ref=pr" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "Detected pull request"
+          else
+            echo "type=unknown" >> $GITHUB_OUTPUT
+            echo "ref=unknown" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
           fi
-          # Sanitize branch name
-          SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9.-]/-/g' | cut -c 1-30)
-          echo "branch_name=$SAFE_BRANCH_NAME" >> $GITHUB_OUTPUT
-          echo "is_default_branch=$([ \"$GITHUB_REF\" = \"refs/heads/main\" ] && echo \"true\" || echo \"false\")" >> $GITHUB_OUTPUT
+          
+          # SHA curto
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Generate Docker tags
         id: tags
         run: |
-          TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          TAGS=""
           
-          # Se não for a branch main, adiciona tag com nome da branch
-          if [ "${{ steps.branch.outputs.is_default_branch }}" = "false" ]; then
-            TAGS="$TAGS,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch.outputs.branch_name }}"
+          # Se for uma tag, usa o nome exato da tag
+          if [ "${{ steps.git.outputs.type }}" = "tag" ]; then
+            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.git.outputs.ref }}"
+          
+          # Se for branch main
+          elif [ "${{ steps.git.outputs.is_main }}" = "true" ]; then
+            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.git.outputs.short_sha }}"
+          
+          # Se for outro branch
+          elif [ "${{ steps.git.outputs.type }}" = "branch" ]; then
+            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.git.outputs.ref }}-${{ steps.git.outputs.short_sha }}"
+          
+          # Se for PR
+          elif [ "${{ steps.git.outputs.type }}" = "pr" ]; then
+            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ steps.git.outputs.short_sha }}"
+          
+          else
+            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.git.outputs.short_sha }}"
           fi
-          
-          # Adiciona tag com SHA curto
-          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)
-          TAGS="$TAGS,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$SHORT_SHA"
           
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
           echo "Generated tags: $TAGS"
@@ -186,3 +231,4 @@ jobs:
         if: always()
         run: |
           docker system prune -f
+
