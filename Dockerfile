@@ -12,8 +12,6 @@ RUN apk add --no-cache \
     luajit-dev \
     lua5.1 \
     lua5.1-dev \
-    lua-cjson \
-    lua-resty-http \
     luarocks \
     tzdata \
     wget \
@@ -77,12 +75,12 @@ RUN luarocks-5.1 install lua-resty-redis && \
     luarocks-5.1 install luaossl && \
     luarocks-5.1 install lua-resty-string && \
     luarocks-5.1 install lua-resty-http && \
-    luarocks-5.1 install lua-resty-openssl
+    luarocks-5.1 install lua-resty-openssl && \
+    luarocks-5.1 install lua-cjson
 FROM alpine:3.22
 RUN apk add --no-cache \
     luajit \
     lua5.1 \
-    lua-cjson \
     openssl \
     curl \
     tzdata
