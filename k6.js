@@ -26,6 +26,8 @@ export default function () {
   console.info(
     `🟢 JSON ID: ${id} - Status: ${resJson.status} - X-Cache: ${resJson.headers['X-Cache']}`
   );
+  console.log('🟢 JSON Headers:', JSON.stringify(resJson.headers, null, 2));
+  console.log('🟢 JSON Body:', resJson.body ? resJson.body.substring(0, 300) + '...' : '(empty)');
 
   check(resJson, {
     'status is 200': (r) => r.status === 200,
@@ -42,6 +44,10 @@ export default function () {
 
   console.info(
     `🟡 IMG ID: ${id} - Status: ${resImg.status} - X-Cache: ${resImg.headers['X-Cache']}`
+  );
+  console.log('🟡 IMG Headers:', JSON.stringify(resImg.headers, null, 2));
+  console.log(
+    `🟡 IMG Body size: ${resImg.body ? resImg.body.length : 0} bytes`
   );
 
   check(resImg, {
