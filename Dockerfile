@@ -22,7 +22,7 @@ RUN cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime && \
 ENV LUAJIT_LIB=/usr/lib
 ENV LUAJIT_INC=/usr/include/luajit-2.1
 WORKDIR /tmp
-RUN echo "http://nginx.org/packages/alpine/v3.12/main" >> /etc/apk/repositories && \
+RUN echo "http://nginx.org/packages/alpine/v3.22/main" >> /etc/apk/repositories && \
     wget https://nginx.org/keys/nginx_signing.rsa.pub && \
     mv nginx_signing.rsa.pub /etc/apk/keys/
 RUN wget http://nginx.org/download/nginx-1.29.0.tar.gz && \
