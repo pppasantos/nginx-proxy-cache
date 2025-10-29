@@ -132,18 +132,18 @@ jobs:
           echo "=== Generating SBOM Report with Syft ==="
           
           # Pull da imagem para garantir que está disponível localmente
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS
           
           # Gerar SBOM completo com Syft
-          syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest -o json > sbom-detailed.json
+          syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS -o json > sbom-detailed.json
           
           # Gerar SBOM em texto simples
-          syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest > sbom-report.txt
+          syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS > sbom-report.txt
           
           # Criar análise resumida
           echo "=== SBOM ANALYSIS ===" > sbom-analysis.txt
           echo "Generated: $(date -u)" >> sbom-analysis.txt
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> sbom-analysis.txt
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS" >> sbom-analysis.txt
           echo "SBOM Tool: Syft" >> sbom-analysis.txt
           echo "" >> sbom-analysis.txt
           
@@ -166,16 +166,16 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
           
           # Scan de vulnerabilidades
-          trivy image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest > trivy-scan.txt
+          trivy image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS > trivy-scan.txt
           
           # Scan em formato JSON
-          trivy image --format json ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest > trivy-scan.json
+          trivy image --format json ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS > trivy-scan.json
 
       - name: Generate build summary report
         run: |
           echo "=== BUILD SUMMARY REPORT ===" > build-summary.txt
           echo "Build Time: $(date -u)" >> build-summary.txt
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> build-summary.txt
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS" >> build-summary.txt
           echo "Tags: ${{ steps.tags.outputs.tags }}" >> build-summary.txt
           echo "Branch: ${{ steps.branch.outputs.branch_name }}" >> build-summary.txt
           echo "" >> build-summary.txt
@@ -207,7 +207,7 @@ jobs:
         run: |
           echo "🎉 BUILD COMPLETED SUCCESSFULLY 🎉"
           echo "==================================="
-          echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS"
           echo "🏷️  Tags: ${{ steps.tags.outputs.tags }}"
           echo "🌿 Branch: ${{ steps.branch.outputs.branch_name }}"
           echo "🔐 Security Features:"
@@ -222,7 +222,7 @@ jobs:
           echo "   - trivy-scan.txt (security scan)"
           echo ""
           echo "🚀 Image ready for use:"
-          echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAGS"
 
       - name: Build and start containers for testing
         run: docker compose up --build --abort-on-container-exit
@@ -231,5 +231,6 @@ jobs:
         if: always()
         run: |
           docker system prune -f
+
 
 
