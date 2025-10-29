@@ -169,7 +169,7 @@ jobs:
           trivy image ${{ steps.tags.outputs.tags }} > trivy-scan.txt
           
           # Scan em formato JSON
-          trivy image --format json :${{ steps.tags.outputs.tags }} > trivy-scan.json
+          trivy image --format json ${{ steps.tags.outputs.tags }} > trivy-scan.json
 
       - name: Generate build summary report
         run: |
@@ -231,6 +231,7 @@ jobs:
         if: always()
         run: |
           docker system prune -f
+
 
 
 
