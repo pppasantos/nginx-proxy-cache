@@ -80,26 +80,14 @@ RUN luarocks-5.1 install lua-resty-redis && \
 FROM alpine:3.22
 RUN apk add --no-cache \
     bash \
-    build-base \
-    linux-headers \
-    openssl-dev \
-    pcre-dev \
-    zlib-dev \
-    curl \
-    vim \
-    git \
-    stunnel \
     luajit \
-    luajit-dev \
     lua5.1 \
-    lua5.1-dev \
     lua-cjson \
     lua-resty-http \
     luarocks \
-    tzdata \
-    wget \
     openssl \
-    openssl-dev
+    curl \
+    tzdata
 COPY --from=builder /usr/local/nginx /usr/local/nginx
 COPY --from=builder /usr/local/share/lua /usr/local/share/lua
 COPY --from=builder /usr/local/lib/lua /usr/local/lib/lua
