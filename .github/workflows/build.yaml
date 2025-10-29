@@ -4,7 +4,7 @@ on:
   push:
     branches: 
       - "main"
-      - "feature/**"   # Branches de feature
+      - "feat/**"   # Branches de feature
       - "fix/**"       # Branches de fix
       - "hotfix/**"    # Branches de hotfix
       - "release/**"   # Branches de release
@@ -231,4 +231,5 @@ jobs:
         if: always()
         run: |
           docker system prune -f
+
 
