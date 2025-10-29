@@ -100,4 +100,4 @@ USER nginx
 WORKDIR /home/nginx
 EXPOSE 8889 8890
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=2 CMD curl -f http://127.0.0.1:8889/_nginx_healthcheck || exit 1
-ENTRYPOINT ["/bin/bash", "-c", "nginx -g 'daemon off;'"]
+ENTRYPOINT ["/bin/sh", "-c", "nginx -g 'daemon off;'"]
