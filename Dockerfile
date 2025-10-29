@@ -80,6 +80,8 @@ RUN apk add --no-cache \
     luajit \
     lua5.1 \
     openssl \
+    pcre-dev \
+    zlib-dev \
     curl \
     tzdata
 COPY --from=builder /usr/local/nginx /usr/local/nginx
