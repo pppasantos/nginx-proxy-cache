@@ -130,33 +130,42 @@ jobs:
       - name: Generate SBOM with Syft
         run: |
           echo "=== Generating SBOM Report with Syft ==="
-          
-          # Pull da imagem para garantir que está disponível localmente
-          docker pull ${{ steps.tags.outputs.tags }}
-          
-          # Gerar SBOM completo com Syft
-          syft ${{ steps.tags.outputs.tags }} -o json > sbom-detailed.json
-          
-          # Gerar SBOM em texto simples
-          syft ${{ steps.tags.outputs.tags }} > sbom-report.txt
-          
-          # Criar análise resumida
-          echo "=== SBOM ANALYSIS ===" > sbom-analysis.txt
+
+          IFS=',' read -ra IMAGES <<< "${{ steps.tags.outputs.tags }}"
+
+          > sbom-analysis.txt
+          echo "=== SBOM ANALYSIS ===" >> sbom-analysis.txt
           echo "Generated: $(date -u)" >> sbom-analysis.txt
-          echo "Image: ${{ steps.tags.outputs.tags }}" >> sbom-analysis.txt
-          echo "SBOM Tool: Syft" >> sbom-analysis.txt
-          echo "" >> sbom-analysis.txt
-          
-          # Extrair contagem de pacotes (com fallback)
-          if command -v jq &> /dev/null; then
-            PACKAGE_COUNT=$(jq '.artifacts | length' sbom-detailed.json 2>/dev/null || echo "0")
-          else
-            PACKAGE_COUNT=$(grep -c '"name"' sbom-detailed.json || echo "0")
-          fi
-          echo "Total packages: $PACKAGE_COUNT" >> sbom-analysis.txt
-          echo "" >> sbom-analysis.txt
-          echo "TOP PACKAGES:" >> sbom-analysis.txt
-          head -50 sbom-report.txt >> sbom-analysis.txt
+          echo "Images:" >> sbom-analysis.txt
+
+          for IMG in "${IMAGES[@]}"; do
+            echo "- $IMG" >> sbom-analysis.txt
+          done
+
+          for IMG in "${IMAGES[@]}"; do
+            SAFE=$(echo "$IMG" | sed 's/[:\/]/_/g')
+            echo "--- Processing image: $IMG ---"
+
+            docker pull "$IMG"
+
+            syft "$IMG" -o json > "sbom-${SAFE}-detailed.json"
+            syft "$IMG" > "sbom-${SAFE}-report.txt"
+
+            # Contagem de pacotes
+            if command -v jq &>/dev/null; then
+              COUNT=$(jq '.artifacts | length' "sbom-${SAFE}-detailed.json" 2>/dev/null || echo "0")
+            else
+              COUNT=$(grep -c '"name"' "sbom-${SAFE}-detailed.json" || echo "0")
+            fi
+
+            echo "" >> sbom-analysis.txt
+            echo "Image: $IMG" >> sbom-analysis.txt
+            echo "Total packages: $COUNT" >> sbom-analysis.txt
+            echo "Top packages:" >> sbom-analysis.txt
+            head -20 "sbom-${SAFE}-report.txt" >> sbom-analysis.txt
+            echo "" >> sbom-analysis.txt
+          done
+
 
       - name: Security Scan with Trivy
         run: |
@@ -230,4 +239,5 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
+
           docker system prune -f
