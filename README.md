@@ -14,6 +14,10 @@ This project is a high-performance, modular CDN and HTTP cache solution based on
 * **Prometheus**: Real-time metrics collection and exposure.
 * **Full Modularization**: Logic, logging, headers, and caching behavior are maintained in external Lua modules and configuration files.
 
+## Example Architecture
+
+<img width="1692" height="1575" alt="diagram2" src="https://github.com/user-attachments/assets/55318fd9-2d15-43a9-a1ab-deed6bbffa65" />
+
 ---
 
 ## Project Structure
