@@ -10,9 +10,9 @@ services:
       - redis_network
 
   nginx:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: pppasantos/nginx-proxy-cache:latest
     logging:
       driver: none
