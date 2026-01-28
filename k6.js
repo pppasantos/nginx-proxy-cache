@@ -55,4 +55,6 @@ export default function () {
     'image is not empty': (r) => r.body && r.body.length > 0,
     'X-Cache is defined (img)': (r) => r.headers['X-Cache'] !== undefined,
   });
+
+  sleep(1);
 }
