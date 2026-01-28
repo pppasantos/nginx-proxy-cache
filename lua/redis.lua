@@ -46,18 +46,5 @@ function _M.fetch_cache(red, key)
         log.log_warn("Cache missing for key: ", key)
     end
 end
- 
-function _M.respond_locked(red, key_hash, respond_callback)
-    log.log_warn("Lock active; attempting to serve stale cache for: ", key_hash)
-    local stale = _M.fetch_cache(red, key_hash)
-    if stale then
-        return respond_callback(stale, "STALE-IF-LOCK")
-    end
- 
-    log.log_warn("No stale cache available, returning 503")
-    ngx.status = 503
-    ngx.header["Retry-After"] = 2
-    return ngx.exit(503)
-end
- 
+
 return _M
