@@ -6,7 +6,6 @@ RUN apk add --no-cache \
     openssl-dev \
     pcre-dev \
     zlib-dev \
-    curl \
     git \
     luajit \
     luajit-dev \
