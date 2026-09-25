@@ -127,8 +127,7 @@ RUN apk add --no-cache \
     lua5.1 \
     openssl \
     pcre2 \
-    zlib \
-    curl
+    zlib
 
 COPY --from=builder /usr/local/nginx /usr/local/nginx
 COPY --from=builder /usr/local/share/lua /usr/local/share/lua
@@ -154,5 +153,5 @@ WORKDIR /home/nginx
 
 EXPOSE 8889 8890
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=2 \
-    CMD curl -f http://127.0.0.1:8889/_nginx_healthcheck || exit 1
+    CMD wget -q -Y off -T 3 -O /dev/null  http://127.0.0.1:8889/_nginx_healthcheck || exit 1
 ENTRYPOINT ["/bin/sh", "-c", "nginx -g 'daemon off;'"]
