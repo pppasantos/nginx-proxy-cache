@@ -180,12 +180,60 @@ jobs:
           
           # Instalar Trivy (alternativa ao Snyk que funciona offline)
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          
-          # Scan de vulnerabilidades
-          trivy image ${{ steps.tags.outputs.tags }} > trivy-scan.txt
-          
-          # Scan em formato JSON
-          trivy image --format json ${{ steps.tags.outputs.tags }} > trivy-scan.json
+
+          # tags e uma lista separada por virgula: precisa ser quebrada, senao
+          # o trivy recebe "img:main,img:latest,..." como uma unica referencia
+          IFS=',' read -ra IMAGES <<< "${{ steps.tags.outputs.tags }}"
+
+          for IMG in "${IMAGES[@]}"; do
+            SAFE=$(echo "$IMG" | sed 's/[:\/]/_/g')
+            echo "--- Scanning image: $IMG ---"
+
+            docker pull "$IMG"
+
+            # Scan de vulnerabilidades
+            trivy image "$IMG" > "trivy-${SAFE}-scan.txt"
+
+            # Scan em formato JSON
+            trivy image --format json "$IMG" > "trivy-${SAFE}-scan.json"
+
+            cat "trivy-${SAFE}-scan.txt"
+          done
+
+      # Grype complementa o Trivy: para pacotes apk o Trivy usa o secdb do Alpine e
+      # nao reporta CVE sem versao corrigida registrada (ex.: os CVE-2026-891xx de
+      # pcre2). O Grype casa versao contra NVD/OSV e pega esses casos.
+      - name: Security Scan with Grype
+        run: |
+          echo "=== Security Scan with Grype ==="
+
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          echo "Grype version:"
+          grype version
+
+          IFS=',' read -ra IMAGES <<< "${{ steps.tags.outputs.tags }}"
+
+          for IMG in "${IMAGES[@]}"; do
+            SAFE=$(echo "$IMG" | sed 's/[:\/]/_/g')
+            echo "--- Scanning image: $IMG ---"
+
+            docker pull "$IMG"
+
+            grype "$IMG" -o table > "grype-${SAFE}-scan.txt"
+            grype "$IMG" -o json  > "grype-${SAFE}-scan.json"
+
+            cat "grype-${SAFE}-scan.txt"
+
+            {
+              echo "### Grype: $IMG"
+              echo '```'
+              head -40 "grype-${SAFE}-scan.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          # Para falhar o build em achados graves, troque a linha do scan por:
+          #   grype "$IMG" -o table --fail-on high > "grype-${SAFE}-scan.txt"
 
       - name: Generate build summary report
         run: |
@@ -199,6 +247,7 @@ jobs:
           echo "✅ Provenance: Enabled" >> build-summary.txt
           echo "✅ SBOM: Generated with Syft" >> build-summary.txt
           echo "✅ Trivy Security Scan: Completed" >> build-summary.txt
+          echo "✅ Grype Security Scan: Completed" >> build-summary.txt
           echo "✅ Cache: GitHub Actions Cache" >> build-summary.txt
           echo "" >> build-summary.txt
           echo "BUILD METADATA:" >> build-summary.txt
@@ -210,13 +259,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
+          # Syft/Trivy/Grype geram um arquivo por imagem, com a tag no nome
           path: |
-            sbom-detailed.json
-            sbom-report.txt
+            sbom-*-detailed.json
+            sbom-*-report.txt
             sbom-analysis.txt
-            trivy-scan.txt
-            trivy-scan.json
+            trivy-*-scan.txt
+            trivy-*-scan.json
+            grype-*-scan.txt
+            grype-*-scan.json
             build-summary.txt
+          if-no-files-found: error
           retention-days: 90
 
       - name: Display final summary
@@ -230,12 +283,14 @@ jobs:
           echo "   ✅ Provenance attestation"
           echo "   ✅ SBOM generation" 
           echo "   ✅ Trivy security scan"
+          echo "   ✅ Grype security scan"
           echo "   ✅ Build cache enabled"
           echo ""
           echo "📊 Artifacts generated:"
-          echo "   - sbom-detailed.json (Complete SBOM)"
+          echo "   - sbom-<image>-detailed.json (Complete SBOM)"
           echo "   - sbom-analysis.txt (SBOM summary)"
-          echo "   - trivy-scan.txt (security scan)"
+          echo "   - trivy-<image>-scan.txt (security scan)"
+          echo "   - grype-<image>-scan.txt (security scan)"
           echo ""
           echo "🚀 Image ready for use:"
           echo "   docker pull ${{ steps.tags.outputs.tags }}"
