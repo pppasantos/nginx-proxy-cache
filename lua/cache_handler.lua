@@ -1,6 +1,7 @@
 local http = require "resty.http"
 local cjson = require "cjson.safe"
 local crypto = require "crypto"
+local cache_key = require "cache_key"
 local utils = require "utils"
 local log = require "log"
 local redis = require "redis"
@@ -67,15 +68,15 @@ function _M.handle()
     local raw_uri = ngx.var.request_uri
     local headers = ngx.req.get_headers()
  
-    local key = ngx.var.scheme .. method .. raw_uri
-    for _, h in ipairs(cache_headers) do
-        local val = headers[h]
-        if val then key = key .. "|" .. h .. "=" .. val end
-    end
-    if use_body_in_key and (method == "POST" or method == "PUT" or method == "PATCH") then
-        key = key .. "|" .. body_data
-    end
-    local key_hash = ngx.md5(key)
+    local key_hash = cache_key.build_hashed_key({
+        scheme = ngx.var.scheme,
+        method = method,
+        raw_uri = raw_uri,
+        headers = headers,
+        body = body_data,
+        cache_headers = cache_headers,
+        use_body_in_key = use_body_in_key,
+    })
     ngx.var.cache_key = key_hash
     local lock_key = "lock:" .. key_hash
  

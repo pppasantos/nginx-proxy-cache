@@ -1,0 +1,2646 @@
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": 617,
+      "links": [],
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 37,
+          "panels": [],
+          "title": "Cache",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P50 (Mediana):\n\nDescrição: Este gráfico representa o valor da latência na mediana. Ou seja, 50% das requisições foram processadas mais rápido ou igual a este valor, e os outros 50% mais lentas. O P50 é uma boa medida para entender o desempenho central do sistema, pois não é influenciado por valores extremos.\nInterpretação: Ajuda a identificar o tempo de resposta típico do sistema para a maioria das requisições.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 1
+          },
+          "id": 39,
+          "options": {
+            "calculate": false,
+            "calculation": {
+              "xBuckets": {
+                "mode": "size"
+              },
+              "yBuckets": {
+                "mode": "size"
+              }
+            },
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Blues",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "green"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.50, sum(rate(nginx_http_cache_response_time_bucket{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod_name=~\"$pod\", cache_status=~\"$cache_status\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P50",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Server Cache Time P50",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P90 (Percentil 90):\n\nDescrição: Este gráfico mostra o valor da latência em que 90% das requisições foram processadas mais rápido ou igual a este tempo. Significa que os 10% mais lentos tiveram latências acima deste valor.\nInterpretação: É útil para entender o desempenho em relação às requisições mais lentas, ou seja, a \"cauda\" dos 10% mais lentos. Um aumento no P90 pode indicar problemas de desempenho que afetam uma parte significativa das requisições",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 9,
+            "x": 8,
+            "y": 1
+          },
+          "id": 40,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": false,
+              "scale": "exponential",
+              "scheme": "Turbo",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.90, sum(rate(nginx_http_cache_response_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\", cache_status=~\"$cache_status\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P90",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Server Cache Time P90",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P99 (Percentil 99):\n\nDescrição: Este gráfico representa o valor da latência em que 99% das requisições foram processadas mais rápido ou igual a este valor. Isso significa que apenas 1% das requisições são mais lentas do que o valor mostrado no gráfico.\nInterpretação: O P99 mostra a latência nos casos mais extremos do sistema, frequentemente usados para identificar outliers e entender o impacto dos piores casos no desempenho. A análise do P99 é importante para sistemas que precisam de alta confiabilidade, pois ele captura os momentos mais críticos.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 7,
+            "x": 17,
+            "y": 1
+          },
+          "id": 28,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Reds",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.99, sum(rate(nginx_http_cache_response_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\", cache_status=~\"$cache_status\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P99",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Server Cache Time P99",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "fieldMinMax": false,
+              "mappings": [],
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value"
+                },
+                "properties": []
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 9
+          },
+          "id": 31,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "100 * (\n  sum(rate(server_http_cache_status_total{namespace=~\"$namespace\", deployment=~\"$deployment\", cache_status=\"HIT\", route=~\"$route\", pod_name=~\"$pod\"}[$__rate_interval])) \n  /\n  sum(rate(server_http_cache_status_total{namespace=~\"$namespace\", deployment=~\"$deployment\", cache_status=~\".+\", route=~\"$route\", pod_name=~\"$pod\"}[$__rate_interval]))\n)\n",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "HIT",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "100 * (\n  sum(rate(server_http_cache_status_total{namespace=~\"$namespace\", deployment=~\"$deployment\", cache_status=\"MISS\", route=~\"$route\", pod_name=~\"$pod\"}[$__rate_interval])) \n  /\n  sum(rate(server_http_cache_status_total{namespace=~\"$namespace\", deployment=~\"$deployment\", cache_status=~\".+\", route=~\"$route\", pod_name=~\"$pod\"}[$__rate_interval]))\n)\n",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "MISS",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "HTTP Cache",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed+area"
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "dark-orange",
+                    "value": 750
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 2000
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byValue",
+                  "options": {
+                    "op": "gte",
+                    "reducer": "allIsZero",
+                    "value": 0
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": true,
+                      "tooltip": true,
+                      "viz": false
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byValue",
+                  "options": {
+                    "op": "gte",
+                    "reducer": "allIsNull",
+                    "value": 0
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": true,
+                      "tooltip": true,
+                      "viz": false
+                    }
+                  }
+                ]
+              },
+              {
+                "__systemRef": "hideSeriesFrom",
+                "matcher": {
+                  "id": "byNames",
+                  "options": {
+                    "mode": "exclude",
+                    "names": [
+                      "HIT",
+                      "MISS"
+                    ],
+                    "prefix": "All except:",
+                    "readOnly": true
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 17
+          },
+          "id": 32,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "avg(rate(nginx_http_cache_response_time_sum{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod_name=~\"$pod\", cache_status=~\"$cache_status\"}[$__rate_interval])) by (cache_status)",
+              "format": "time_series",
+              "hide": false,
+              "instant": false,
+              "intervalFactor": 1,
+              "legendFormat": "__auto",
+              "refId": "A"
+            }
+          ],
+          "title": "Cache Response Time",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 25
+          },
+          "id": 14,
+          "panels": [],
+          "title": "Data",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 0,
+            "y": 26
+          },
+          "id": 15,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-1"
+              },
+              "editorMode": "code",
+              "expr": "sum by (deployment) (\n  irate(server_http_request_bytes_received{namespace=\"$namespace\", deployment=~\"$deployment\", pod=~\"$pod\"}[$__rate_interval])\n)\n",
+              "format": "time_series",
+              "hide": false,
+              "intervalFactor": 2,
+              "legendFormat": "in",
+              "metric": "nginx_server_bytes",
+              "range": true,
+              "refId": "A",
+              "step": 240
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "sum by (deployment) (\n  irate(server_http_request_bytes_sent{namespace=\"$namespace\", deployment=~\"$deployment\"}[$__rate_interval])\n)\n",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "out",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Server Bytes",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 12,
+            "y": 26
+          },
+          "id": 16,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-1"
+              },
+              "editorMode": "code",
+              "expr": "sum by (deployment) (\n  irate(upstream_bytes_received{namespace=\"$namespace\", deployment=~\"$deployment\", pod=~\"$pod\"}[$__rate_interval])\n)\n",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "in",
+              "metric": "nginx_upstream_bytes",
+              "range": true,
+              "refId": "A",
+              "step": 240
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "sum by (deployment) (\n  irate(upstream_bytes_sent{namespace=\"$namespace\", deployment=~\"$deployment\"}[$__rate_interval])\n)\n",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "out",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Upstream Bytes",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 32
+          },
+          "id": 12,
+          "panels": [],
+          "title": "Server",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 33
+          },
+          "id": 17,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "sum by (state) (\n  server_http_connections{deployment=~\"$deployment\", namespace=~\"$namespace\", state=~\"active|writing|reading|waiting\", pod=~\"$pod\"}\n)\n",
+              "format": "time_series",
+              "intervalFactor": 2,
+              "legendFormat": "{{status}}",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Server Connections",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed+area"
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "dark-orange",
+                    "value": 750
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 2000
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byValue",
+                  "options": {
+                    "op": "gte",
+                    "reducer": "allIsZero",
+                    "value": 0
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": true,
+                      "tooltip": true,
+                      "viz": false
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byValue",
+                  "options": {
+                    "op": "gte",
+                    "reducer": "allIsNull",
+                    "value": 0
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": true,
+                      "tooltip": true,
+                      "viz": false
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 40
+          },
+          "id": 43,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "sum by (route) (\n  rate(server_http_request_time_sum{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod=~\"$pod\"}[$__rate_interval])\n)\n/\nsum by (route) (\n  rate(server_http_request_time_count{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod=~\"$pod\"}[$__rate_interval])\n)\n",
+              "format": "time_series",
+              "hide": false,
+              "instant": false,
+              "intervalFactor": 1,
+              "legendFormat": "__auto",
+              "refId": "A"
+            }
+          ],
+          "title": "Response Time Total by (Route)",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed+area"
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "dark-orange",
+                    "value": 750
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 2000
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byValue",
+                  "options": {
+                    "op": "gte",
+                    "reducer": "allIsZero",
+                    "value": 0
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": true,
+                      "tooltip": true,
+                      "viz": false
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byValue",
+                  "options": {
+                    "op": "gte",
+                    "reducer": "allIsNull",
+                    "value": 0
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": true,
+                      "tooltip": true,
+                      "viz": false
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 54
+          },
+          "id": 44,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "sum by (method) (\nrate(server_http_methods{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod=~\"$pod\"}[$__rate_interval])\n)",
+              "format": "time_series",
+              "hide": false,
+              "instant": false,
+              "intervalFactor": 1,
+              "legendFormat": "{{method}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Server HTTP Methods",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 1,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 68
+          },
+          "id": 8,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-1"
+              },
+              "editorMode": "code",
+              "expr": "sum by (status) (\n  irate(server_http_requests{namespace=\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod=~\"$pod\"}[$__rate_interval])\n)\n",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{code}}",
+              "metric": "nginx_server_requests",
+              "range": true,
+              "refId": "A",
+              "step": 240
+            }
+          ],
+          "title": "Server HTTP Requests",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P50 (Mediana):\n\nDescrição: Este gráfico representa o valor da latência na mediana. Ou seja, 50% das requisições foram processadas mais rápido ou igual a este valor, e os outros 50% mais lentas. O P50 é uma boa medida para entender o desempenho central do sistema, pois não é influenciado por valores extremos.\nInterpretação: Ajuda a identificar o tempo de resposta típico do sistema para a maioria das requisições.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 76
+          },
+          "id": 26,
+          "options": {
+            "calculate": false,
+            "calculation": {
+              "xBuckets": {
+                "mode": "size"
+              },
+              "yBuckets": {
+                "mode": "size"
+              }
+            },
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Blues",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "green"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.50, sum(rate(server_http_request_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P50",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Server Request Time P50",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P90 (Percentil 90):\n\nDescrição: Este gráfico mostra o valor da latência em que 90% das requisições foram processadas mais rápido ou igual a este tempo. Significa que os 10% mais lentos tiveram latências acima deste valor.\nInterpretação: É útil para entender o desempenho em relação às requisições mais lentas, ou seja, a \"cauda\" dos 10% mais lentos. Um aumento no P90 pode indicar problemas de desempenho que afetam uma parte significativa das requisições",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 7,
+            "x": 8,
+            "y": 76
+          },
+          "id": 27,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": false,
+              "scale": "exponential",
+              "scheme": "Turbo",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.90, sum(rate(server_http_request_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P90",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Server resquest Time P90",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P99 (Percentil 99):\n\nDescrição: Este gráfico representa o valor da latência em que 99% das requisições foram processadas mais rápido ou igual a este valor. Isso significa que apenas 1% das requisições são mais lentas do que o valor mostrado no gráfico.\nInterpretação: O P99 mostra a latência nos casos mais extremos do sistema, frequentemente usados para identificar outliers e entender o impacto dos piores casos no desempenho. A análise do P99 é importante para sistemas que precisam de alta confiabilidade, pois ele captura os momentos mais críticos.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 7,
+            "x": 15,
+            "y": 76
+          },
+          "id": 41,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Reds",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.99, sum(rate(server_http_request_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P99",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Server request Time P99",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "**P80 (Percentil 80):**\n\n**Descrição:** Este gráfico representa o valor da latência em que 80% das requisições foram processadas mais rápido ou igual a este valor. Isso significa que 20% das requisições são mais lentas do que o valor mostrado no gráfico.\n\n**Interpretação:** O P80 mostra a latência em cenários comuns do sistema, focando no desempenho médio-superior. É frequentemente usado para entender a experiência da maioria dos usuários e identificar tendências gerais de desempenho, sem considerar os casos mais extremos como no P99. A análise do P80 é útil para balancear otimizações de desempenho sem priorizar outliers.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 23,
+            "x": 0,
+            "y": 84
+          },
+          "id": 29,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Oranges",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.80, sum(rate(server_http_request_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P80",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Server request Time P80",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 94
+          },
+          "id": 18,
+          "panels": [],
+          "title": "Backend",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "This one is providing aggregated error codes, but it's still possible to graph these per upstream.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": [
+              {
+                "__systemRef": "hideSeriesFrom",
+                "matcher": {
+                  "id": "byNames",
+                  "options": {
+                    "mode": "exclude",
+                    "names": [
+                      "200"
+                    ],
+                    "prefix": "All except:",
+                    "readOnly": true
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 95
+          },
+          "id": 13,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-1"
+              },
+              "editorMode": "code",
+              "expr": "sum by (status) (\n  irate(upstream_requests{namespace=\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", status!~\"total\", pod=~\"$pod\"}[$__rate_interval])\n)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{status}}",
+              "metric": "nginx_upstream_requests",
+              "range": true,
+              "refId": "A",
+              "step": 240
+            }
+          ],
+          "title": "Backend Requests by http status",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P50 (Mediana):\n\nDescrição: Este gráfico representa o valor da latência na mediana. Ou seja, 50% das requisições foram processadas mais rápido ou igual a este valor, e os outros 50% mais lentas. O P50 é uma boa medida para entender o desempenho central do sistema, pois não é influenciado por valores extremos.\nInterpretação: Ajuda a identificar o tempo de resposta típico do sistema para a maioria das requisições.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 104
+          },
+          "id": 22,
+          "options": {
+            "calculate": false,
+            "calculation": {
+              "xBuckets": {
+                "mode": "size"
+              },
+              "yBuckets": {
+                "mode": "size"
+              }
+            },
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Blues",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "green"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.50, sum(rate(upstream_response_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P50",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Backend Response Time P50",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P90 (Percentil 90):\n\nDescrição: Este gráfico mostra o valor da latência em que 90% das requisições foram processadas mais rápido ou igual a este tempo. Significa que os 10% mais lentos tiveram latências acima deste valor.\nInterpretação: É útil para entender o desempenho em relação às requisições mais lentas, ou seja, a \"cauda\" dos 10% mais lentos. Um aumento no P90 pode indicar problemas de desempenho que afetam uma parte significativa das requisições",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 7,
+            "x": 8,
+            "y": 104
+          },
+          "id": 21,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": false,
+              "scale": "exponential",
+              "scheme": "Turbo",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.90, sum(rate(upstream_response_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P90",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Backend response Time P90",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "P99 (Percentil 99):\n\nDescrição: Este gráfico representa o valor da latência em que 99% das requisições foram processadas mais rápido ou igual a este valor. Isso significa que apenas 1% das requisições são mais lentas do que o valor mostrado no gráfico.\nInterpretação: O P99 mostra a latência nos casos mais extremos do sistema, frequentemente usados para identificar outliers e entender o impacto dos piores casos no desempenho. A análise do P99 é importante para sistemas que precisam de alta confiabilidade, pois ele captura os momentos mais críticos.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 7,
+            "x": 15,
+            "y": 104
+          },
+          "id": 25,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Reds",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.99, sum(rate(upstream_response_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P99",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Backend response Time P99",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "**P80 (Percentil 80):**\n\n**Descrição:** Este gráfico representa o valor da latência em que 80% das requisições foram processadas mais rápido ou igual a este valor. Isso significa que 20% das requisições são mais lentas do que o valor mostrado no gráfico.\n\n**Interpretação:** O P80 mostra a latência em cenários comuns do sistema, focando no desempenho médio-superior. É frequentemente usado para entender a experiência da maioria dos usuários e identificar tendências gerais de desempenho, sem considerar os casos mais extremos como no P99. A análise do P80 é útil para balancear otimizações de desempenho sem priorizar outliers.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 23,
+            "x": 0,
+            "y": 112
+          },
+          "id": 42,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "cellValues": {
+              "unit": "s"
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": true,
+              "scale": "exponential",
+              "scheme": "Oranges",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "tooltip": {
+              "mode": "single",
+              "showColorScale": false,
+              "yHistogram": false
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "histogram_quantile(0.80, sum(rate(upstream_response_time_bucket{namespace=\"$namespace\", deployment=\"$deployment\", route=~\"$route\", pod=~\"$pod\"}\n[$__rate_interval])) by (le))",
+              "format": "heatmap",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "P80",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Backend response Time P80",
+          "transparent": true,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "dark-yellow",
+                    "value": 2000
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 3000
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 122
+          },
+          "id": 9,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "sum by (route) (\n  rate(upstream_response_time_sum{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod=~\"$pod\"}[$__rate_interval])\n) \n/ \nsum by (route) (\n  rate(upstream_response_time_count{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\", pod=~\"$pod\"}[$__rate_interval])\n)\n ",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Backend Response Time by (Route)",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "O gráfico mostra mede a direção da tendência da latência.\n\nPositiva: Latência aumentando.\nNegativa: Latência diminuindo.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "fieldMinMax": true,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "dark-yellow",
+                    "value": 2000
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 3000
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 131
+          },
+          "id": 35,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "deriv(\n  sum by (route) (\n    rate(upstream_response_time_sum{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\"}[5m]) \n    / \n    rate(upstream_response_time_count{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\"}[5m])\n  )[15m:]\n)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Derivada",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-app"
+          },
+          "description": "O gráfico mostra a magnitude da variação. Da latência do tempo de resposta da api.\n\nValor em 0 significa latência perfeitamente estável (sem variação).\n\nQuanto maior o valor, mais imprevisível é a latência.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": true,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 1,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "fieldMinMax": false,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "dark-yellow",
+                    "value": 2000
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 3000
+                  }
+                ]
+              },
+              "unit": "dtdurationms"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 140
+          },
+          "id": 36,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-app"
+              },
+              "editorMode": "code",
+              "expr": "stddev(\n  rate(upstream_response_time_sum{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\"}[1m]) \n  / \n  rate(upstream_response_time_count{namespace=~\"$namespace\", deployment=~\"$deployment\", route=~\"$route\"}[1m])\n) by (route)  * 1000",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Jitter",
+          "transparent": true,
+          "type": "timeseries"
+        }
+      ],
+      "preload": false,
+      "refresh": "1m",
+      "schemaVersion": 40,
+      "tags": [],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "text": "Prometheus",
+              "value": "prometheus"
+            },
+            "includeAll": false,
+            "label": "Data Source",
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "type": "datasource"
+          },
+          {
+            "current": {
+              "text": "default",
+              "value": "default"
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "$datasource"
+            },
+            "definition": "label_values(kube_deployment_spec_replicas,namespace)",
+            "includeAll": false,
+            "label": "namespace",
+            "name": "namespace",
+            "options": [],
+            "query": {
+              "query": "label_values(kube_deployment_spec_replicas,namespace)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {
+              "text": [
+                "juvo-d2c-svc-device"
+              ],
+              "value": [
+                "juvo-d2c-svc-device"
+              ]
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "prometheus"
+            },
+            "definition": "label_values(kube_deployment_spec_replicas{namespace=\"$namespace\"},deployment)",
+            "includeAll": false,
+            "label": "deployment",
+            "multi": true,
+            "name": "deployment",
+            "options": [],
+            "query": {
+              "query": "label_values(kube_deployment_spec_replicas{namespace=\"$namespace\"},deployment)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "type": "query"
+          },
+          {
+            "current": {
+              "text": [
+                "/api/devices/brands"
+              ],
+              "value": [
+                "/api/devices/brands"
+              ]
+            },
+            "definition": "label_values(server_http_route_usage{namespace=\"$namespace\", deployment=\"$deployment\"},route)",
+            "includeAll": true,
+            "multi": true,
+            "name": "route",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(server_http_route_usage{namespace=\"$namespace\", deployment=\"$deployment\"},route)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "type": "query"
+          },
+          {
+            "current": {
+              "text": "All",
+              "value": [
+                "$__all"
+              ]
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "prometheus"
+            },
+            "definition": "label_values(kube_pod_start_time{namespace=\"$namespace\"},pod)",
+            "includeAll": true,
+            "label": "pod",
+            "multi": true,
+            "name": "pod",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(kube_pod_start_time{namespace=\"$namespace\"},pod)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "/^$deployment-[a-z0-9]+-[a-z0-9]+$/",
+            "sort": 2,
+            "type": "query"
+          },
+          {
+            "current": {
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "definition": "label_values(nginx_http_cache_response_time_count{namespace=\"$namespace\", deployment=\"$deployment\"},cache_status)",
+            "includeAll": true,
+            "label": "cache_status",
+            "multi": true,
+            "name": "cache_status",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(nginx_http_cache_response_time_count{namespace=\"$namespace\", deployment=\"$deployment\"},cache_status)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "type": "query"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Nginx Proxy Cache",
+      "uid": "edce1807-7947-427e-93a2-811ssc05d4bf",
+      "version": 1,
+      "weekStart": ""
+    }

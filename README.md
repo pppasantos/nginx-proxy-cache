@@ -184,11 +184,36 @@ Global `$redis_ttl` is `3600`:
 
 Manual cache invalidation can be performed by calling the dedicated invalidation endpoint:
 
-```
-GET /cache_invalidate?key=<cache_key>
+```http
+POST /cache_invalidate
+Content-Type: application/json
+
+{
+  "keys": ["<cache_key_1>", "<cache_key_2>"]
+}
 ```
 
-Replace `<cache_key>` with the actual cache key you wish to invalidate. Multiple keys can be invalidated simultaneously by providing multiple `key` parameters.
+You can also invalidate by sending HTTP request descriptors instead of precomputed cache keys. This is useful for external sidecars that know the affected route, but do not want to duplicate the cache key hash logic:
+
+```http
+POST /cache_invalidate
+Content-Type: application/json
+
+{
+  "requests": [
+    {
+      "scheme": "https",
+      "method": "GET",
+      "uri": "/api/character/67",
+      "headers": {},
+      "cache_headers": "",
+      "cache_use_body_in_key": false
+    }
+  ]
+}
+```
+
+The proxy computes the same internal MD5 cache key used during storage and removes the matching Redis entries.
 
 ---
 
