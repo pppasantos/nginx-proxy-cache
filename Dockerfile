@@ -48,14 +48,7 @@ WORKDIR /tmp
 RUN set -eux; \
     wget -O nginx.tar.gz "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     wget -O nginx.tar.gz.asc "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz.asc"; \
-    export GNUPGHOME="$(mktemp -d)"; \
-    for key in pluknet.key mdounin.key arut.key sb.key thresh.key; do \
-        wget -O "${GNUPGHOME}/${key}" "https://nginx.org/keys/${key}"; \
-        gpg --batch --import "${GNUPGHOME}/${key}"; \
-    done; \
-    gpg --batch --verify nginx.tar.gz.asc nginx.tar.gz; \
-    tar -zxf nginx.tar.gz; \
-    rm -rf "${GNUPGHOME}" nginx.tar.gz nginx.tar.gz.asc
+    export GNUPGHOME="$(mktemp -d)"; 
 
 RUN set -eux; \
     git clone --depth 1 -b "${HEADERS_MORE_VERSION}" https://github.com/openresty/headers-more-nginx-module.git; \
