@@ -142,7 +142,97 @@ set $cache_statuses          "200,203,204,206,301,404";
 set $cache_headers           "Authorization";
 set $cache_use_body_in_key   "false";
 set $treat_head_as_get       "true";
+
+# Redis value encryption (AES-256-GCM, at rest)
+set $redis_crypto_enabled    "true";                   # on/off switch
+set $redis_crypto_key        "<base64 32-byte key>";   # openssl rand -base64 32
 ```
+
+---
+
+## Redis Value Encryption
+
+Cached values can be encrypted **at rest** in Redis at the application layer, so Redis — and its RDB/AOF dumps, memory, and replicas — only ever sees opaque bytes. It never handles plaintext and does not need to be aware encryption exists.
+
+Encryption uses **AES-256-GCM** (an AEAD cipher: confidentiality **and** integrity). A fresh random 96-bit IV is generated per operation and, together with the authentication tag and a format-version byte, prefixed to the ciphertext:
+
+```text
+base64( version(1 byte) ‖ IV(12 bytes) ‖ tag(16 bytes) ‖ ciphertext )
+```
+
+Because the IV and tag travel **inside** the stored value, any pod or NGINX worker can decrypt what any other produced — the only requirement is the **same `redis_crypto_key` on every instance**. Transport security (the wire) is a separate concern, handled by TLS (`https://` / `wss://`), not by this layer.
+
+### Configuration
+
+| Variable | Role |
+| --- | --- |
+| `redis_crypto_enabled` | On/off switch — `"true"` enables; any other value means passthrough (stored/read in clear). |
+| `redis_crypto_key` | The 32-byte AES-256 key used when enabled, base64-encoded. Generate with `openssl rand -base64 32`. |
+
+> There is no static IV to configure: the IV is random per operation and prefixed to the payload.
+
+### Decision topology
+
+```mermaid
+flowchart TD
+    classDef warn fill:#fdecea,stroke:#c0392b,color:#7b1f1f;
+    classDef safe fill:#e7f4ec,stroke:#1e7a46,color:#14532d;
+    classDef store fill:#e6edfb,stroke:#2d5fb3,color:#17356e;
+
+    subgraph WRITE["Write — cache_handler.handle() → crypto.encrypt(payload)"]
+        direction TB
+        W1["Backend response<br/>cjson.encode → payload"] --> E0{payload is string?}
+        E0 -- no --> ENIL["log_err → return nil"]
+        E0 -- yes --> RC1{{"resolve_config()<br/>redis_crypto_enabled == 'true' ?"}}
+        RC1 -- "disabled" --> WPT["return plaintext<br/>(intentional passthrough)"]
+        RC1 -- "enabled but key missing / bad base64 / not 32 bytes" --> ERRW["log_err → return nil<br/>(fail-closed)"]
+        RC1 -- "enabled, valid 32-byte key" --> IV{random IV 12 bytes<br/>RNG ok?}
+        IV -- no --> ENIL2["log_err → return nil<br/>(fail-closed)"]
+        IV -- yes --> GCM["AES-256-GCM<br/>ciphertext + tag"]
+        GCM --> FMT["base64(version ‖ IV ‖ tag ‖ ciphertext)"]
+    end
+
+    WPT --> ST{encrypt returned a value?}
+    FMT --> ST
+    ENIL --> SKIP["skip storage<br/>nothing written to Redis"]
+    ENIL2 --> SKIP
+    ERRW --> SKIP
+    ST -- yes --> REDW[("Redis<br/>SET key EX ttl")]
+    ST -- no --> SKIP
+
+    subgraph READ["Read — redis.fetch_cache() → crypto.decrypt(val)"]
+        direction TB
+        RD[("Redis GET key")] --> RC2{{"resolve_config()<br/>status?"}}
+        RC2 -- "disabled" --> DPT["return value as-is<br/>(intentional passthrough)"]
+        RC2 -- "misconfigured (fail-closed)" --> DNIL["log_err → return nil"]
+        RC2 -- "ok" --> B64{base64 ok and<br/>len > header?}
+        B64 -- no --> DNIL
+        B64 -- yes --> VER{version byte matches?}
+        VER -- "no (legacy / corrupt)" --> DNIL
+        VER -- yes --> DEC{AES-256-GCM decrypt<br/>tag valid?}
+        DEC -- "no (tampered)" --> DNIL
+        DEC -- yes --> PLAIN["plaintext → cjson.decode"]
+    end
+
+    DPT --> OK["response served"]
+    PLAIN --> OK
+    DNIL --> MISS["return nil → treated as cache MISS, repopulated"]
+
+    class ERRW,ENIL2,GCM,FMT safe
+    class REDW,RD store
+```
+
+### Behavior summary
+
+| Condition | `encrypt` / `decrypt` result | Effect |
+| --- | --- | --- |
+| `redis_crypto_enabled` ≠ `"true"` | passthrough | value stored/read in clear (by design) |
+| enabled, key missing / invalid / ≠ 32 bytes | `nil` (**fail-closed**) | storage skipped and `log_err` emitted — never stores plaintext under a broken key |
+| enabled, RNG failure | `nil` (fail-closed) | storage skipped; nothing written to Redis |
+| enabled, valid key | GCM ciphertext | encrypted at rest |
+| read: tampered / wrong version / legacy format | `nil` | treated as cache **MISS**, repopulated |
+
+> **Key rotation.** Changing the key invalidates existing entries (they become MISSes and repopulate). The format-version byte allows introducing a new algorithm or key side by side during a migration.
 
 ---
 
