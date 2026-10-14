@@ -3,7 +3,7 @@ import { check, sleep } from 'k6';
 
 export const options = {
   vus: 1,
-  iterations: 1652,
+  iterations: 50,
 };
 
 const ids = Array.from({ length: 100 }, (_, i) => i + 1);

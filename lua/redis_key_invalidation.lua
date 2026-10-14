@@ -87,20 +87,38 @@ function _M.invalidate_key()
  
     local deleted = 0
     local removed_keys = {}
- 
+
+    -- DEL em pipeline: um único round-trip para todas as chaves em vez de N.
+    red:init_pipeline(#keys)
     for _, key in ipairs(keys) do
-        local res, err = red:del(key)
-        if res and res > 0 then
+        red:del(key)
+    end
+    local results, pipe_err = red:commit_pipeline()
+
+    if not results then
+        log.log_err("Redis pipeline error: ", pipe_err)
+        redis.release(red)
+        ngx.status = 500
+        return ngx.say("Redis pipeline error")
+    end
+
+    for i, res in ipairs(results) do
+        local key = keys[i]
+        if type(res) == "table" then
+            -- Erro individual deste comando no pipeline
+            log.log_err("Error deleting key: ", key, " -> ", res[2] or "unknown")
+        elseif res and res > 0 then
             deleted = deleted + res
             table.insert(removed_keys, key)
             log.log_info("Key removed: ", key)
-        elseif err then
-            log.log_err("Error deleting key: ", key, " -> ", err)
         end
     end
- 
+
+    -- Devolve a conexão ao pool (antes era deixada aberta: vazamento de conexão).
+    redis.release(red)
+
     log.log_info("Total deleted: ", deleted, " | keys: ", table.concat(removed_keys, ", "))
- 
+
     ngx.header.content_type = "application/json"
     ngx.say(cjson.encode({
         deleted = deleted,
