@@ -1,6 +1,17 @@
 services:
   redis:
     image: redis:8.2-m01-alpine3.22
+    command:
+      - redis-server
+      - --user
+      - default
+      - off
+      - --user
+      - nginx
+      - on
+      - ">proxy"
+      - "~*"
+      - "+@all"
     logging:
       driver: none
     attach: false

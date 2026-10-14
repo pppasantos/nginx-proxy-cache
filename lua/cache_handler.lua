@@ -8,10 +8,25 @@ local redis = require "redis"
  
 local _M = {}
  
--- Fecha ambas as conexões Redis de forma segura
-local function close_redis(red_read, red_write)
-    if red_read  then red_read:close()  end
-    if red_write then red_write:close() end
+-- Devolve ambas as conexões Redis ao pool de keepalive de forma segura
+local function release_redis(red_read, red_write)
+    redis.release(red_read)
+    redis.release(red_write)
+end
+
+-- Executa a requisição ao backend. Centraliza a montagem da URL e do httpc,
+-- evitando duplicar essa lógica entre o caminho cacheável e o não-cacheável.
+local function request_backend(backend_method, raw_uri, body_data, headers)
+    local httpc = http.new()
+    httpc:set_timeout(tonumber(ngx.var.lua_backend_timeout) or 3000)
+    local url = ngx.var.backend_url_scheme .. "://" .. ngx.var.backend_url_host
+                .. ":" .. ngx.var.backend_host_port .. raw_uri
+    return httpc:request_uri(url, {
+        method = backend_method,
+        body = body_data,
+        headers = headers,
+        ssl_verify = ngx.var.lua_ssl_verify == "true"
+    })
 end
  
 local function respond_from_cache(data, src)
@@ -85,91 +100,75 @@ function _M.handle()
  
     log.log_info("Generated Cache Key: ", key_hash)
  
-    local red_read = redis.get_redis_client(true)
-    local red_write = redis.get_redis_client(false)
-    if not red_read or not red_write then
-        log.log_err("Error initializing Redis")
-        close_redis(red_read, red_write)
-        return ngx.exit(500)
-    end
- 
-    -- Métodos não cacheáveis: proxy direto sem tocar no Redis
+    local backend_method = (method == "HEAD" and treat_head_as_get) and "GET" or method
+
+    -- Métodos não cacheáveis: proxy direto sem sequer abrir conexão com o Redis
     if not cache_methods[method] then
         log.log_warn("Non-cached method: ", method)
-        close_redis(red_read, red_write)
- 
-        local httpc = http.new()
-        httpc:set_timeout(tonumber(ngx.var.lua_backend_timeout) or 3000)
-        local backend_method = (method == "HEAD" and treat_head_as_get) and "GET" or method
         log.log_info("Backend request: method = ", backend_method, " URI = ", raw_uri)
- 
-        local url = ngx.var.backend_url_scheme .. "://" .. ngx.var.backend_url_host .. ":" .. ngx.var.backend_host_port .. raw_uri
-        local res, err = httpc:request_uri(url, {
-            method = backend_method,
-            body = body_data,
-            headers = headers,
-            ssl_verify = ngx.var.lua_ssl_verify == "true"
-        })
- 
+
+        local res, err = request_backend(backend_method, raw_uri, body_data, headers)
         if not res then
             log.log_err("Backend error: ", err)
             ngx.status = 502
             if not ngx.headers_sent then ngx.say("Error consulting backend") end
             return ngx.exit(502)
         end
- 
+
         log.log_info("Backend response received with status: ", res.status)
         return send_backend_response(res, method)
     end
- 
+
+    -- A partir daqui o método é cacheável: abrir conexões com o Redis
+    local red_read = redis.get_redis_client(true)
+    local red_write = redis.get_redis_client(false)
+    if not red_read or not red_write then
+        log.log_err("Error initializing Redis")
+        release_redis(red_read, red_write)
+        return ngx.exit(500)
+    end
+
     -- Cache HIT?
     local cached = redis.fetch_cache(red_read, key_hash)
     if cached then
         log.log_info("Cache HIT: ", key_hash)
-        close_redis(red_read, red_write)
+        release_redis(red_read, red_write)
         return respond_from_cache(cached, "HIT")
     end
- 
+
     -- Cache MISS — verificar se há lock ativo de outro request
     local lock_owner = red_read:get(lock_key)
     local i_own_lock = false
- 
+
     if lock_owner and lock_owner ~= ngx.null then
         -- Lock de outro request: bypass direto ao backend sem armazenar
         log.log_info("Lock found (owner: ", lock_owner, "), bypassing to backend: ", key_hash)
         ngx.header["X-Cache"] = "LOCKED-BYPASS"
         ngx.var.cache_status = "LOCKED-BYPASS"
-    else
-        -- Sem lock: tentar adquirir ownership
-        if not redis.acquire_lock(red_write, lock_key, owner_id) then
-            close_redis(red_read, red_write)
-            return ngx.exit(500)
-        end
+    elseif redis.acquire_lock(red_write, lock_key, owner_id) then
+        -- Sem lock e adquirimos ownership: nós é que populamos o cache
         i_own_lock = true
         log.log_info("Lock acquired with owner: ", owner_id)
         ngx.header["X-Cache"] = "MISS"
         ngx.var.cache_status = "MISS"
+    else
+        -- Perdemos a corrida pelo lock (SET NX): outro request acabou de adquiri-lo.
+        -- Isso é contenção normal, não erro — fazemos bypass em vez de responder 500.
+        log.log_info("Lost lock race, bypassing to backend: ", key_hash)
+        ngx.header["X-Cache"] = "LOCKED-BYPASS"
+        ngx.var.cache_status = "LOCKED-BYPASS"
     end
- 
-    local httpc = http.new()
-    httpc:set_timeout(tonumber(ngx.var.lua_backend_timeout) or 3000)
-    local backend_method = (method == "HEAD" and treat_head_as_get) and "GET" or method
+
     log.log_info("Backend request: method = ", backend_method, " URI = ", raw_uri)
- 
-    local url = ngx.var.backend_url_scheme .. "://" .. ngx.var.backend_url_host .. ":" .. ngx.var.backend_host_port .. raw_uri
-    local res, err = httpc:request_uri(url, {
-        method = backend_method,
-        body = body_data,
-        headers = headers,
-        ssl_verify = ngx.var.lua_ssl_verify == "true"
-    })
- 
+    local res, err = request_backend(backend_method, raw_uri, body_data, headers)
+
     if not res then
         log.log_err("Backend error: ", err)
-        -- Tentar servir cache stale se disponível
+        -- Tentar servir cache stale: pode ter sido populado por outro request
+        -- (ex.: o LOCKED-BYPASS) entre o nosso MISS inicial e a falha do backend.
         local stale = redis.fetch_cache(red_read, key_hash)
         if i_own_lock then red_write:del(lock_key) end
-        close_redis(red_read, red_write)
+        release_redis(red_read, red_write)
         if stale then
             log.log_warn("Serving stale cache due to backend error: ", key_hash)
             return respond_from_cache(stale, "STALE-IF-ERROR")
@@ -216,7 +215,7 @@ function _M.handle()
  
     log.log_info("Finishing request, cleaning lock")
     if i_own_lock then red_write:del(lock_key) end
-    close_redis(red_read, red_write)
+    release_redis(red_read, red_write)
  
     return send_backend_response(res, method)
 end
