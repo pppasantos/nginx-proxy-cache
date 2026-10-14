@@ -76,6 +76,7 @@ RUN set -eux; \
 
 RUN mkdir -p /usr/local/lib/lua /usr/local/share/lua/5.1 && \
     cp -r lua-resty-core/lib/resty /usr/local/share/lua/5.1/ && \
+    cp -r lua-resty-core/lib/ngx /usr/local/share/lua/5.1/ && \
     cp -r lua-resty-lrucache/lib/resty /usr/local/share/lua/5.1/
 
 WORKDIR /tmp/nginx-${NGINX_VERSION}
