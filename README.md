@@ -285,6 +285,19 @@ Content-Type: application/json
 }
 ```
 
+Example with `curl`:
+
+```bash
+curl -i -X POST http://localhost:8889/cache_invalidate \
+  -H "Content-Type: application/json" \
+  -H "Host: rickandmortyapi.com" \
+  -d '{
+    "keys": [
+      "cd4e850d2ce866f930c8c7eb3d000411"
+    ]
+  }'
+```
+
 You can also invalidate by sending HTTP request descriptors instead of precomputed cache keys. This is useful for external sidecars that know the affected route, but do not want to duplicate the cache key hash logic:
 
 ```http
@@ -348,9 +361,47 @@ k6 prints the deletion response bodies; `tail` shows entries such as `Key remove
 
 Each pair of identical requests produces a **MISS** on the first request and a **HIT** on the next. The following output shows the corresponding NGINX logs (`tail -f /var/log/nginx/error.log`).
 
+On a **MISS**, NGINX forwards the backend response headers, except `Connection` and `Transfer-Encoding`; `$cache_exclude_response_headers` does not filter this path. The variable is applied when a cached response is served on a **HIT**, allowing configured backend headers to be suppressed there. Headers added locally by NGINX, such as `X-Pod-Hostname` and the route's `Cache-Control`, are configured separately.
+
 ### 1️⃣ First Request (MISS)
 
 The response is fetched from the backend and saved in Redis:
+
+```bash
+curl -I http://localhost:8889/api/character/1 \
+  -H "Host: rickandmortyapi.com" \
+  -H "Accept: application/json"
+```
+
+**Response:**
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Connection: keep-alive
+X-Cache: MISS
+referrer-policy: no-referrer-when-downgrade
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+x-xss-protection: 1; mode=block
+CF-RAY: a4a743c69ef6f1c3-GRU
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+alt-svc: h3=":443"; ma=86400
+Access-Control-Allow-Origin: *
+ETag: W/"a9f-I68Cx5oSPFclkl+Wy2Fr9jNsFS8"
+X-Proxy-Cache: HIT
+Content-Length: 2719
+cf-cache-status: HIT
+Cache-Control: public, max-age=7776000, immutable
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Fi2ZMduFKU5pQLWpbK1Qf7gyTXRGQVNol5KXw9d1XVIhQqx8V7uF8fYxscZAmBn1q52jgKgW8qpyvEhgcGM8gXX9vgu4SUyMl9gCTDc4igEJEkN14bzVXUxpTF9xLHB9k7xtNjA8"}]}
+Date: Wed, 14 Oct 2026 14:27:25 GMT
+Accept-Ranges: bytes
+Age: 6627235
+expect-ct: max-age=86400, enforce
+X-Pod-Hostname: 1a83023e8a7e
+Cache-Control: public, max-age=300
+Pragma: public
+```
 
 ```text
 ℹ️ Request method: GET, client: 172.18.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
@@ -371,6 +422,31 @@ The response is fetched from the backend and saved in Redis:
 ### 2️⃣ Second Request (HIT)
 
 The same request is served directly from Redis; the backend is not called again:
+
+```bash
+curl -I http://localhost:8889/api/character/1 \
+  -H "Host: rickandmortyapi.com" \
+  -H "Accept: application/json"
+```
+
+**Response:**
+
+```http
+HTTP/1.1 200 OK
+Date: Wed, 14 Oct 2026 14:27:44 GMT
+Content-Type: application/json; charset=utf-8
+Connection: keep-alive
+ETag: W/"a9f-I68Cx5oSPFclkl+Wy2Fr9jNsFS8"
+Cache-Control: public, max-age=7776000, immutable
+X-Cache: HIT
+Referrer-Policy: no-referrer-when-downgrade
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+X-Frame-Options: SAMEORIGIN
+X-Pod-Hostname: 1a83023e8a7e
+Cache-Control: public, max-age=300
+Pragma: public
+```
 
 ```text
 ℹ️ Request method: GET, client: 172.18.0.1, server: localhost, request: "GET /api/character/1 HTTP/1.1", host: "rickandmortyapi.com"
