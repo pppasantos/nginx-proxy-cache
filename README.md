@@ -132,6 +132,8 @@ JSON logging suitable for Elasticsearch:
 set $redis_host              "localhost";
 set $redis_read_host         "localhost";
 set $redis_write_host        "localhost";
+set $redis_username          "nginx";
+set $redis_password          "proxy";
 set $redis_timeout           "1000";
 set $redis_pool_size         "100";
 set $redis_ttl               "3600";
