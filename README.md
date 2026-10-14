@@ -307,6 +307,24 @@ Content-Type: application/json
 
 The proxy computes the same internal MD5 cache key used during storage and removes the matching Redis entries.
 
+### Test the endpoint with k6 and follow the logs
+
+The `k6.js` script also tests invalidation by request descriptor and by key, idempotent repeated deletion, a MISS after invalidation, and invalid payloads. To run the tests while following the endpoint logs:
+
+1. In one terminal, follow the NGINX error log:
+
+   ```bash
+   docker compose exec nginx tail -f /var/log/nginx/error.log
+   ```
+
+2. In another terminal, run k6:
+
+   ```bash
+   docker compose run --rm k6
+   ```
+
+k6 prints the deletion response bodies; `tail` shows entries such as `Key removed` and `Total deleted` so you can compare the HTTP result with the NGINX log.
+
 ---
 
 ## Best Practices for Cached Routes
